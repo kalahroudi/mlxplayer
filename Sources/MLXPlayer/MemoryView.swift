@@ -20,6 +20,22 @@ struct MemoryView: View {
         }
     }
 
+    @State private var limitBusy = false
+    @State private var limitNote: String?
+
+    /// Asks macOS for admin rights and sets the limit; it lasts until restart.
+    private func applyLimit(_ mb: Int) {
+        limitBusy = true; limitNote = nil
+        Task {
+            do {
+                try await GPULimit.apply(mb: mb, totalBytes: model.hardware.memoryBytes)
+                model.hardware = HardwareProbe.current()
+                limitNote = mb == 0 ? "Reset to default" : "Applied until restart"
+            } catch { limitNote = error.localizedDescription }
+            limitBusy = false
+        }
+    }
+
     private var pressureColor: Color {
         switch model.memoryPressure { case .normal: return .good; case .warning: return .warn; default: return .bad }
     }
@@ -48,9 +64,14 @@ struct MemoryView: View {
                         CardTitle(text: "GPU memory limit", trailing: formatBytes(hw.gpuLimitBytes))
                         Text("macOS lets the GPU wire part of unified memory. Raise it in Terminal if a model is close.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
-                        let mb = Int(Double(hw.memoryBytes) * 0.9 / 1_048_576)
+                        let mb = GPULimit.suggestedMB(totalBytes: hw.memoryBytes)
                         CodeBlock(text: "sudo sysctl iogpu.wired_limit_mb=\(mb)", height: 44)
-                        Button("Copy") { model.copy("sudo sysctl iogpu.wired_limit_mb=\(mb)") }.buttonStyle(.pill)
+                        HStack {
+                            Button("Apply") { applyLimit(mb) }.buttonStyle(.pillPrimary).disabled(limitBusy)
+                            Button("Reset") { applyLimit(0) }.buttonStyle(.pill).disabled(limitBusy)
+                            Button("Copy") { model.copy("sudo sysctl iogpu.wired_limit_mb=\(mb)") }.buttonStyle(.pill)
+                        }
+                        if let limitNote { Text(limitNote).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
                         SettingRow(title: "Keep free") {
                             SliderField(value: $model.app.reserveGB, range: 2...32, step: 1, format: "%.0f GB")
                         }
