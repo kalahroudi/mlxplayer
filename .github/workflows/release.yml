@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-26
     env:
       # The secrets context is not available in step conditions, so expose "is it set" as plain env flags.
       HAS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
