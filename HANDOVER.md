@@ -10,7 +10,7 @@ browser, or see the published canvas: https://claude.ai/artifact/PtGiNC8E4Wk8ig7
 
 | Part | Status |
 |---|---|
-| `Sources/MLXPlayerCore` | Done. **89 tests pass** (1 live test is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
+| `Sources/MLXPlayerCore` | Done. **92 tests pass** (plus 1 live test that is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
 | `Sources/mlxplayer-mcp` | Done. Verified end to end against the running app (get_status, start_server, stop_server). |
 | `Sources/MLXPlayer` | Compiles. App entry, popover, sidebar shell and all screens written (Setup, Discover, Library, Server, Advisor, Memory, Usage, Logs, Settings). |
 | `scripts/bundle.sh` | Builds `dist/MLX Player.app` (Info.plist, LSUIElement, macOS 14, icon, mcp copied, ad-hoc signed, sandbox off). |
@@ -105,7 +105,7 @@ Design rules the user set (keep them):
 
 ```
 swift build                 # core + mcp (+ app on macOS)
-swift test                  # 76 tests, includes proxy streaming against Tests/MLXPlayerCoreTests/Fixtures/fake_backend.py (needs python3)
+swift test                  # 92 tests, includes proxy streaming against Tests/MLXPlayerCoreTests/Fixtures/fake_backend.py (needs python3)
 swift run mlxplayer-mcp     # stdio MCP server
 ```
 
