@@ -60,6 +60,14 @@ final class AppModel {
     var swapBytes: UInt64 = 0
     var pressureHistory: [Double] = []
     var speedHistory: [Double] = []
+    /// Latest whole-machine reading and short histories (0...1) for the Overview charts, one point per tick.
+    var system = SystemSnapshot()
+    var cpuHistory: [Double] = []
+    var gpuHistory: [Double] = []
+    var memoryHistory: [Double] = []
+    var vramHistory: [Double] = []
+    @ObservationIgnored private let sampler = SystemSampler()
+    static let historyLength = 90
     var memoryEvents: [(time: Date, text: String)] = []
     private var pressureCapActive = false
 
@@ -613,6 +621,7 @@ final class AppModel {
         if speedHistory.count > 40 { speedHistory.removeFirst() }
         hardware.availableBytes = HardwareProbe.availableMemory()
         swapBytes = HardwareProbe.swapUsedBytes()
+        recordSystemSample()
         Task {
             serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0
@@ -622,6 +631,23 @@ final class AppModel {
         if pressureHistory.count > 360 { pressureHistory.removeFirst() }
         idleCheck()
         updater.autoCheckIfDue(enabled: app.autoCheckUpdates)
+    }
+
+    func sampleSystem() { recordSystemSample() }
+
+    private func recordSystemSample() {
+        let snap = sampler.sample()
+        system = snap
+        func push(_ array: inout [Double], _ v: Double) {
+            array.append(min(max(v, 0), 1))
+            if array.count > Self.historyLength { array.removeFirst(array.count - Self.historyLength) }
+        }
+        push(&cpuHistory, snap.cpu)
+        push(&gpuHistory, snap.gpu ?? 0)
+        let total = Double(max(snap.memory.total, 1))
+        push(&memoryHistory, Double(snap.memory.used) / total)
+        let limit = Double(max(hardware.gpuLimitBytes, 1))
+        push(&vramHistory, Double(snap.gpuMemoryBytes ?? 0) / limit)
     }
 
     private func idleCheck() {

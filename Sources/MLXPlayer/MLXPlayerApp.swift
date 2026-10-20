@@ -3,11 +3,12 @@ import AppKit
 import MLXPlayerCore
 
 enum Screen: String, CaseIterable, Identifiable {
-    case server, library, discover, advisor, memory, usage, logs, settings
+    case overview, server, library, discover, advisor, memory, usage, logs, settings
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     var symbol: String {
         switch self {
+        case .overview: return "gauge.with.dots.needle.67percent"
         case .server: return "server.rack"
         case .library: return "books.vertical"
         case .discover: return "magnifyingglass"
@@ -22,7 +23,7 @@ enum Screen: String, CaseIterable, Identifiable {
 
 @MainActor @Observable
 final class Navigator {
-    var screen: Screen = .server
+    var screen: Screen = .overview
     var settingsTab: SettingsView.Tab = .general
 }
 
@@ -30,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu bar only; also covers `swift run` where Info.plist has no LSUIElement.
         NSApp.setActivationPolicy(.accessory)
+        if CommandLine.arguments.contains("--snapshot") {
+            Task { @MainActor in
+                await Snapshot.run(args: CommandLine.arguments)
+                exit(0)
+            }
+        }
     }
 }
 
