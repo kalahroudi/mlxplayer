@@ -46,6 +46,10 @@ struct SettingsView: View {
                         Text("Icon only").tag(AppSettings.MenuBarDisplay.iconOnly)
                     }.labelsHidden().frame(width: 120)
                 }
+                SettingRow(title: "Appearance") {
+                    Segmented(options: [(AppSettings.Appearance.system, "System"), (.light, "Light"), (.dark, "Dark")],
+                              selection: $model.app.appearance)
+                }
                 ToggleRow(title: "Open at login", isOn: Binding(get: { model.app.launchAtLogin }, set: { on in
                     model.app.launchAtLogin = on
                     do { if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } }

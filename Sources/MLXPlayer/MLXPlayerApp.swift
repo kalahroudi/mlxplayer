@@ -76,7 +76,6 @@ struct MLXPlayerApp: App {
                 .environment(model)
                 .environment(nav)
                 .frame(minWidth: 1100, minHeight: 740)
-                .preferredColorScheme(nil)
         }
         .defaultSize(width: 1240, height: 820)
     }
