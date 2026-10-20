@@ -137,6 +137,9 @@ struct LibraryView: View {
                     if let p = m.meta.totalParamsB { Chip(text: paramLabel(p, m.meta.activeParamsB)) }
                     Chip(text: "\(m.meta.bits)-bit")
                     if m.meta.variant != .standard { Chip(text: m.meta.variant.label, tint: .warn) }
+                    if let b = model.app.benchmarks[m.id] {
+                        Chip(text: "\(Int(b.decodeTokensPerSecond)) t/s measured", tint: .seriesTeal)
+                    }
                 }
             }
             Spacer()
@@ -151,6 +154,8 @@ struct LibraryView: View {
             }
             Button("Settings") { model.select(model: m.id); nav.screen = .server }.buttonStyle(.pill(height: 26))
             Menu {
+                Button("Benchmark") { Task { await model.benchmark(model: m.id) } }
+                    .disabled(model.benchmarking != nil)
                 Button("Reveal in Finder") { model.reveal(model: m.id) }
                 Button("Copy ID") { model.copy(m.id) }
                 Divider()

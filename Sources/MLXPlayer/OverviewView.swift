@@ -148,7 +148,8 @@ struct OverviewView: View {
                     HStack(spacing: 12) {
                         Stat(title: "Memory", value: formatBytes(model.serverMemoryBytes),
                              detail: "\(Int(100 * Double(model.serverMemoryBytes) / Double(max(model.hardware.gpuLimitBytes, 1))))% of GPU limit")
-                        Stat(title: "Speed", value: model.tokensPerSecond > 0 ? "\(Int(model.tokensPerSecond)) t/s" : "–")
+                        Stat(title: "Speed", value: model.tokensPerSecond > 0 ? "\(Int(model.tokensPerSecond)) t/s" : "–",
+                             detail: model.app.benchmarks[id].map { "measured \(Int($0.decodeTokensPerSecond)) t/s" })
                         Stat(title: "Context", value: "\(model.draft.contextLength / 1024)K")
                         Stat(title: "Uptime", value: formatDuration(model.uptime))
                     }

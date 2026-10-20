@@ -87,10 +87,16 @@ public enum SpeedBenchmark {
 
 /// Turns measured speeds into better estimates for models that were not measured.
 public enum SpeedCalibration {
+    /// Below this many active parameters decode speed is bound by per-token overhead, not memory
+    /// bandwidth, so such a benchmark says nothing about larger models (a 0.5B model measured 379 t/s on an M4 Max).
+    static let minimumActiveParamsB = 3.0
+
     /// Median of measured / estimated across benchmarks on this chip, kept in a sane range.
     public static func factor(results: [BenchmarkResult], chip: String, estimate: (ModelMetadata) -> Double) -> Double {
         let ratios = results.filter { $0.chip == chip }.compactMap { r -> Double? in
-            let e = estimate(ModelMetadata.fromName(r.modelID))
+            let meta = ModelMetadata.fromName(r.modelID)
+            guard (meta.activeParamsB ?? meta.totalParamsB ?? 0) >= minimumActiveParamsB else { return nil }
+            let e = estimate(meta)
             return e > 0 && r.decodeTokensPerSecond > 0 ? r.decodeTokensPerSecond / e : nil
         }.sorted()
         guard !ratios.isEmpty else { return 1 }

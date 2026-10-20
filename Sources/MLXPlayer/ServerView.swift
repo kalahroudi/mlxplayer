@@ -32,11 +32,24 @@ struct ServerView: View {
 
     // MARK: Header
 
+    private var benchmarkButton: some View {
+        Button { Task { await model.benchmark() } } label: {
+            if model.benchmarking != nil {
+                HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Measuring") }
+            } else {
+                IconLabel(title: "Benchmark", symbol: "speedometer")
+            }
+        }
+        .buttonStyle(.pill).disabled(model.benchmarking != nil)
+        .help("Measure real tokens per second with this model")
+    }
+
     private var header: some View {
         let name = model.draft.modelID.isEmpty ? "No model" : ModelMetadata.fromName(model.draft.modelID).displayName
         return PageHeader(title: "Server", subtitle: name) {
             HStack(spacing: 8) {
                 if model.isRunning {
+                    benchmarkButton
                     Button("Restart") { Task { await model.restartServer() } }.buttonStyle(.pill)
                     Button("Stop") { Task { await model.stopServer() } }.buttonStyle(.pill)
                 } else if model.serverState.isStarting {

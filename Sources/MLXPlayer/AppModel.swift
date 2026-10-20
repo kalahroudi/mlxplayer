@@ -188,7 +188,13 @@ final class AppModel {
     var isRunning: Bool { serverState == .running }
     var publicPort: Int { draft.port }
     var endpoint: String { "http://\(draft.host == "0.0.0.0" ? "127.0.0.1" : draft.host):\(draft.port)/v1" }
-    var advisor: Advisor { Advisor(hardware: hardware, reserveBytes: UInt64(app.reserveGB * 1_073_741_824)) }
+    var advisor: Advisor {
+        var a = Advisor(hardware: hardware, reserveBytes: UInt64(app.reserveGB * 1_073_741_824))
+        let here = app.benchmarks.values.filter { $0.chip == hardware.chip }
+        a.measuredSpeeds = Dictionary(uniqueKeysWithValues: here.map { ($0.modelID, $0.decodeTokensPerSecond) })
+        a.speedCalibration = SpeedCalibration.factor(results: here, chip: hardware.chip, estimate: { a.rawTokensPerSecond($0) })
+        return a
+    }
 
     var effectiveContextLimit: Int {
         var limit = applied?.contextLength ?? draft.contextLength
@@ -324,6 +330,7 @@ final class AppModel {
     }
 
     private func record(_ r: UsageRecord) {
+        if r.client == "Benchmark" { return }
         usage.record(r)
         let gen = Double(r.durationMs - (r.firstTokenMs ?? 0)) / 1000
         if r.tokensOut > 0, gen > 0.05 { lastSpeed = (Double(r.tokensOut) / gen, Date()) }
@@ -852,6 +859,32 @@ final class AppModel {
             return (200, ["deleted": model])
         default:
             return (404, ["error": "Unknown endpoint"])
+        }
+    }
+
+    // MARK: Benchmark
+
+    var benchmarking: String?
+
+    /// Loads the model if needed, streams one fixed prompt through the endpoint and stores the measured speed.
+    func benchmark(model id: String? = nil) async {
+        guard benchmarking == nil else { return }
+        guard let target = id ?? activeModelID ?? app.lastModelID else { notify(.error, "Pick a model first"); return }
+        benchmarking = target
+        defer { benchmarking = nil }
+        if !(isRunning && activeModelID == target) {
+            await startServer(model: target)
+            guard isRunning, activeModelID == target else { return }
+        }
+        do {
+            let url = URL(string: endpoint)!
+            let result = try await SpeedBenchmark.run(endpoint: url, model: target, chip: hardware.chip)
+            app.benchmarks[target] = result
+            notify(.success, "\(Int(result.decodeTokensPerSecond)) tokens/s",
+                   detail: "\(ModelMetadata.fromName(target).displayName) · first token \(result.firstTokenMs) ms",
+                   action: "Library", screen: .library)
+        } catch {
+            notify(.error, "Benchmark failed", detail: error.localizedDescription, action: "Show logs", screen: .logs)
         }
     }
 

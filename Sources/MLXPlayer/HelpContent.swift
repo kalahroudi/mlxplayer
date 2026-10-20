@@ -28,6 +28,7 @@ enum HelpContent {
         ("KV cache", "Memory that stores attention for the text so far. Quantizing it (kv-bits) saves memory but serves one request at a time."),
         ("Prefill step", "How many prompt tokens are processed per chunk. Larger can be faster but spikes memory."),
         ("Concurrency", "How many prompts or decodes run side by side."),
+        ("Benchmark", "Streams one fixed prompt and measures real tokens per second and first-token delay. Results appear in Library and make speed estimates for other models more accurate."),
         ("Network", "Host and port of the endpoint. 127.0.0.1 keeps it on this Mac; 0.0.0.0 exposes it to your network."),
     ]
 

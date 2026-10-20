@@ -31,6 +31,12 @@ final class BenchmarkTests: XCTestCase {
         XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-4bit", 50)], chip: "Other Chip", estimate: est), 1, "other chips are ignored")
     }
 
+    func testTinyModelsDoNotCalibrateLargeOnes() {
+        let est: (ModelMetadata) -> Double = { _ in 1000 }
+        let tiny = BenchmarkResult(modelID: "mlx-community/Qwen2.5-0.5B-Instruct-4bit", decodeTokensPerSecond: 379, firstTokenMs: 800, tokens: 160, chip: "C")
+        XCTAssertEqual(SpeedCalibration.factor(results: [tiny], chip: "C", estimate: est), 1)
+    }
+
     func testAdvisorUsesMeasuredThenCalibration() {
         var hw = HardwareProbe.current(); hw.bandwidthGBs = 400
         var advisor = Advisor(hardware: hw)
@@ -92,4 +98,29 @@ private final class BenchmarkBackend: @unchecked Sendable {
     }
 
     func stop() { process?.killNow() }
+}
+
+/// Runs against a real mlx_lm.server. Skipped unless MLX_LIVE_MODEL is set, for example
+/// `MLX_LIVE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit swift test --filter LiveBenchmarkTests`.
+final class LiveBenchmarkTests: XCTestCase {
+    func testRealServer() async throws {
+        guard let model = ProcessInfo.processInfo.environment["MLX_LIVE_MODEL"] else { throw XCTSkip("MLX_LIVE_MODEL not set") }
+        let support = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/MLX Player/venv/bin/mlx_lm.server")
+        guard FileManager.default.isExecutableFile(atPath: support.path) else { throw XCTSkip("mlx-lm is not installed") }
+        let l = TCPListener(host: "127.0.0.1", port: 0)
+        try l.start { TCP.close($0) }
+        let port = l.port
+        l.stop()
+        let p = ManagedProcess(executable: support, arguments: ["--model", model, "--port", String(port)], environment: ProcessInfo.processInfo.environment) { _ in }
+        try p.start()
+        defer { p.terminate() }
+        for _ in 0..<120 {
+            if TCP.connect(host: "127.0.0.1", port: port).map({ TCP.close($0); return true }) == true { break }
+            try await Task.sleep(nanoseconds: 500_000_000)
+        }
+        let r = try await SpeedBenchmark.run(endpoint: URL(string: "http://127.0.0.1:\(port)/v1")!, model: model, chip: HardwareProbe.current().chip)
+        print("LIVE BENCHMARK:", r)
+        XCTAssertGreaterThan(r.decodeTokensPerSecond, 5)
+        XCTAssertGreaterThan(r.tokens, 20)
+    }
 }
