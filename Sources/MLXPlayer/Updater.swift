@@ -42,6 +42,10 @@ final class Updater {
             notice = text.trimmingCharacters(in: .whitespacesAndNewlines)
             try? FileManager.default.removeItem(at: failed)
         }
+        // Lets scripts and tests drive an update without clicking: MLX_UPDATE_NOW=1 open "MLX Player.app"
+        if ProcessInfo.processInfo.environment["MLX_UPDATE_NOW"] == "1" {
+            Task { await check(); await install() }
+        }
         Task {
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             try? Data().write(to: markerURL)
