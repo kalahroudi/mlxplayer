@@ -166,7 +166,7 @@ struct DownloadButton: View {
                 }
             }
         } else if isInstalled {
-            Button("Load") { Task { await model.startServer(model: meta.id) } }.buttonStyle(.pill(height: 26))
+            AsyncButton(title: "Load", busyTitle: "Loading…") { await model.startServer(model: meta.id) }.buttonStyle(.pill(height: 26))
         } else {
             Button { model.download(meta) } label: { IconLabel(title: "Download", symbol: "arrow.down.circle") }
                 .buttonStyle(.pillPrimary)

@@ -103,12 +103,12 @@ struct PopoverView: View {
                     }
                     HStack(spacing: 8) {
                         if model.isRunning {
-                            Button { Task { await model.restartServer() } } label: { Text("Restart") }.buttonStyle(.pill)
-                            Button { Task { await model.stopServer() } } label: { Text("Unload") }.buttonStyle(.pill)
-                        } else if model.serverState.isStarting {
-                            Text("Loading…").font(.system(size: 12)).foregroundStyle(.secondary)
+                            AsyncButton(title: "Restart", busyTitle: "Restarting…") { await model.restartServer() }.buttonStyle(.pill)
+                            AsyncButton(title: "Unload", busyTitle: "Unloading…") { await model.stopServer() }.buttonStyle(.pill)
+                        } else if model.serverState.isStarting || model.transition != nil {
+                            Text(model.transition == .unloading ? "Unloading…" : "Loading…").font(.system(size: 12)).foregroundStyle(.secondary)
                         } else {
-                            Button { Task { await model.startServer(model: id) } } label: { Text("Load") }.buttonStyle(.pillPrimary)
+                            AsyncButton(title: "Load", busyTitle: "Loading…") { await model.startServer(model: id) }.buttonStyle(.pillPrimary)
                         }
                     }
                 } else {

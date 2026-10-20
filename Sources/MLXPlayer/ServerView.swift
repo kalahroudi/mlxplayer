@@ -50,13 +50,13 @@ struct ServerView: View {
             HStack(spacing: 8) {
                 if model.isRunning {
                     benchmarkButton
-                    Button("Restart") { Task { await model.restartServer() } }.buttonStyle(.pill)
-                    Button("Stop") { Task { await model.stopServer() } }.buttonStyle(.pill)
-                } else if model.serverState.isStarting {
+                    AsyncButton(title: "Restart", busyTitle: "Restarting…") { await model.restartServer() }.buttonStyle(.pill)
+                    AsyncButton(title: "Stop", busyTitle: "Stopping…") { await model.stopServer() }.buttonStyle(.pill)
+                } else if model.serverState.isStarting || model.transition != nil {
                     ProgressView().controlSize(.small)
-                    Text(model.serverState.startingDetail ?? "Loading").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(model.serverState.startingDetail ?? (model.transition == .unloading ? "Unloading" : "Loading")).font(.system(size: 12)).foregroundStyle(.secondary)
                 } else {
-                    Button("Start") { Task { await model.startServer() } }
+                    AsyncButton(title: "Start", busyTitle: "Starting…") { await model.startServer() }
                         .buttonStyle(.pillPrimary).disabled(model.draft.modelID.isEmpty)
                 }
                 HelpButton(title: "Server settings", entries: HelpContent.server)

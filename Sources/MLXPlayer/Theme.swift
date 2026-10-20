@@ -98,6 +98,33 @@ struct PillButtonStyle: ButtonStyle {
             )
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(kind == .primary ? Color.clear : Color.primary.opacity(0.12)))
             .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed && enabled ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+/// A button for slow actions: it shows a spinner and disables itself the moment it is pressed,
+/// until the async work finishes.
+struct AsyncButton: View {
+    let title: String
+    var busyTitle: String?
+    var symbol: String?
+    var action: () async -> Void
+    @State private var running = false
+
+    var body: some View {
+        Button {
+            guard !running else { return }
+            running = true
+            Task { await action(); running = false }
+        } label: {
+            HStack(spacing: 6) {
+                if running { ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 12, height: 12) }
+                else if let symbol { Image(systemName: symbol) }
+                Text(running ? (busyTitle ?? title) : title)
+            }
+        }
+        .disabled(running)
     }
 }
 

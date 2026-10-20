@@ -207,9 +207,9 @@ struct LibraryView: View {
             Text(formatBytes(m.sizeBytes)).font(.system(size: 12.5)).monospacedDigit().foregroundStyle(.secondary)
             FitBadge(verdict: a.verdict)
             if active {
-                Button("Unload") { Task { await model.stopServer() } }.buttonStyle(.pill(height: 26))
+                AsyncButton(title: "Unload", busyTitle: "Unloading…") { await model.stopServer() }.buttonStyle(.pill(height: 26))
             } else {
-                Button("Load") { Task { await model.startServer(model: m.id) } }.buttonStyle(.pillPrimary)
+                AsyncButton(title: "Load", busyTitle: "Loading…") { await model.startServer(model: m.id) }.buttonStyle(.pillPrimary)
             }
             Button("Settings") { model.select(model: m.id); nav.screen = .server }.buttonStyle(.pill(height: 26))
             Menu {

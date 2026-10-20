@@ -121,7 +121,7 @@ struct Sidebar: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     StatusDot(color: running ? .good : (model.serverState.isStarting ? .warn : .secondary))
-                    Text(running ? "Running" : (model.serverState.isStarting ? "Loading" : "Idle"))
+                    Text(model.transition == .unloading ? "Unloading" : (running && model.transition == nil ? "Running" : (model.serverState.isStarting || model.transition != nil ? "Loading" : "Idle")))
                         .font(.system(size: 12, weight: .semibold))
                 }
                 if let id = model.shownModelID {

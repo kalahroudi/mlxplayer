@@ -361,7 +361,21 @@ final class AppModel {
 
     /// Starts `model` (or the saved one) on the internal port behind the proxy.
     /// A newer start or a stop cancels this one; that is not an error.
+    /// What the user just asked for, set the instant they act so the UI can respond before the server reports anything.
+    enum Transition: Equatable { case loading(String), unloading }
+    var transition: Transition?
+
+    var isBusy: Bool { transition != nil || serverState.isStarting || serverState == .stopping }
+
     func startServer(model: String? = nil) async {
+        let id = model ?? draft.modelID
+        guard transition == nil else { return }
+        transition = .loading(id)
+        defer { transition = nil }
+        await performStart(model: model)
+    }
+
+    private func performStart(model: String? = nil) async {
         let id = model ?? draft.modelID
         guard !id.isEmpty else { lastError = "Pick a model first."; return }
         guard isInstalled else { showSetup = true; return }
@@ -453,6 +467,8 @@ final class AppModel {
     }
 
     func stopServer() async {
+        if transition == nil { transition = .unloading }
+        defer { if transition == .unloading { transition = nil } }
         await supervisor.stop()
         await reconcileServerState()
         applied = nil
