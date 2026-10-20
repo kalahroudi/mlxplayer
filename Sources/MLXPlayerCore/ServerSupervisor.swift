@@ -80,6 +80,7 @@ public actor ServerSupervisor {
         env["PATH"] = paths.venvBin.path + ":" + (env["PATH"] ?? "/usr/bin:/bin")
         env["PYTHONUNBUFFERED"] = "1"
         env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        for (k, v) in HFToken.environment() { env[k] = v }
         for (k, v) in extra { env[k] = v }
         return env
     }

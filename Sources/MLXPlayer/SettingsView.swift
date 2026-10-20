@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(Navigator.self) private var nav
     private var tab: Binding<Tab> { Binding(get: { nav.settingsTab }, set: { nav.settingsTab = $0 }) }
     @State private var installNote: String?
+    @State private var tokenDraft = ""
+    @State private var tokenSaved = HFToken.isSaved
 
     private let tools: [(String, String)] = [
         ("get_hardware", "Chip, memory, limits"), ("search_models", "Search Hugging Face"),
@@ -51,6 +53,16 @@ struct SettingsView: View {
                 }))
                 ToggleRow(title: "Start server at launch", isOn: $model.app.startServerAtLaunch)
                 ToggleRow(title: "Lighter on battery", isOn: $model.app.lighterOnBattery)
+                SettingRow(title: "Hugging Face token", detail: tokenSaved ? "Saved in Keychain" : "For gated models") {
+                    HStack(spacing: 8) {
+                        SecureField("hf_…", text: $tokenDraft).textFieldStyle(.roundedBorder).frame(width: 150)
+                        Button("Save") { HFToken.save(tokenDraft); tokenDraft = ""; tokenSaved = HFToken.isSaved }
+                            .buttonStyle(.pill).disabled(tokenDraft.isEmpty)
+                        if tokenSaved {
+                            Button("Remove") { HFToken.clear(); tokenSaved = HFToken.isSaved }.buttonStyle(.pill)
+                        }
+                    }
+                }
             }
         }
         .frame(maxWidth: 640)

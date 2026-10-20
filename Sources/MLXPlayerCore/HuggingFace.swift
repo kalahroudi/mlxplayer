@@ -95,12 +95,13 @@ public struct SearchQuery: Equatable, Sendable {
 
 public final class HuggingFaceClient: @unchecked Sendable {
     private let session: URLSession
-    private let token: String?
+    private let fixedToken: String?
+    private var token: String? { fixedToken ?? HFToken.current }
     private let base = URL(string: "https://huggingface.co")!
 
     public init(session: URLSession = .shared, token: String? = nil) {
         self.session = session
-        self.token = token
+        self.fixedToken = token
     }
 
     private func request(_ url: URL) -> URLRequest {

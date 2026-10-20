@@ -125,6 +125,7 @@ public final class ModelDownload: @unchecked Sendable {
         env["PATH"] = paths.venvBin.path + ":" + (env["PATH"] ?? "")
         env["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
         env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        for (k, v) in HFToken.environment() { env[k] = v }
         let onLog = self.onLog
         let p = ManagedProcess(executable: cli, arguments: ["download", modelID], environment: env) { onLog($0) }
         try p.start()
