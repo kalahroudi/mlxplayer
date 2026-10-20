@@ -4,7 +4,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="${1:-0.1.0}"
-APP="dist/MLX Player.app"
+APP="${DIST_DIR:-dist}/MLX Player.app"
+REPO="${MLX_REPO:-kalahroudi/mlxplayer}"
+BRANCH="${MLX_BRANCH:-main}"
+COMMIT="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+if [ "$COMMIT" != "unknown" ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then COMMIT="$COMMIT-dirty"; fi
 
 swift build -c release --product MLXPlayer
 swift build -c release --product mlxplayer-mcp
@@ -34,6 +38,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>MLXCommit</key><string>$COMMIT</string>
+  <key>MLXRepo</key><string>$REPO</string>
+  <key>MLXBranch</key><string>$BRANCH</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>

@@ -146,6 +146,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     public var lastModelID: String?
 
+    // Updates from the repo's main branch
+    public var autoCheckUpdates = true
+
     public init() {}
 
     /// Applies a profile's preset values.

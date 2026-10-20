@@ -13,6 +13,7 @@ final class AppModel {
     let logs = LogBuffer(capacity: 2000)
     let hf = HuggingFaceClient()
     let installer: Installer
+    let updater: Updater
     private(set) var supervisor: ServerSupervisor!
     private var proxy: LazyProxy?
     private var control: ControlServer?
@@ -94,12 +95,14 @@ final class AppModel {
         self.store = store
         self.usage = UsageStore(url: paths.usageFile)
         self.installer = Installer(paths: paths)
+        self.updater = Updater(paths: paths)
         self.app = store.app
         self.draft = ServerSettings(modelID: store.app.lastModelID ?? "")
         self.isInstalled = installer.isInstalled || (store.app.customServerPath != nil)
         self.supervisor = ServerSupervisor(paths: paths, logs: logs) { [weak self] state in
             Task { @MainActor in self?.handle(state: state) }
         }
+        updater.beforeQuit = { [weak self] in await self?.supervisor.stop() }
         logs.onAppend = { [weak self] line in
             Task { @MainActor in
                 guard let self else { return }
@@ -122,6 +125,7 @@ final class AppModel {
             sup.killNow()
         }
         refreshInstalled()
+        updater.confirmLaunch()
         if !isInstalled { showSetup = true }
         if let id = app.lastModelID { select(model: id) }
         startProxy()
@@ -591,6 +595,7 @@ final class AppModel {
         pressureHistory.append(Double(memoryPressure.rawValue))
         if pressureHistory.count > 360 { pressureHistory.removeFirst() }
         idleCheck()
+        updater.autoCheckIfDue(enabled: app.autoCheckUpdates)
     }
 
     private func idleCheck() {

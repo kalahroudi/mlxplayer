@@ -3,9 +3,10 @@ import ServiceManagement
 import MLXPlayerCore
 
 struct SettingsView: View {
-    enum Tab: Hashable { case general, agents, mlx }
+    enum Tab: Hashable { case general, agents, mlx, updates }
     @Environment(AppModel.self) private var model
-    @State private var tab: Tab = .general
+    @Environment(Navigator.self) private var nav
+    private var tab: Binding<Tab> { Binding(get: { nav.settingsTab }, set: { nav.settingsTab = $0 }) }
     @State private var installNote: String?
 
     private let tools: [(String, String)] = [
@@ -20,11 +21,13 @@ struct SettingsView: View {
         ScreenFrame {
             PageHeader(title: "Settings")
         } content: {
-            TabStrip(options: [(Tab.general, "General"), (.agents, "Agents (MCP)"), (.mlx, "mlx-lm")], selection: $tab)
-            switch tab {
+            TabStrip(options: [(Tab.general, "General"), (.agents, "Agents (MCP)"), (.mlx, "mlx-lm"), (.updates, "Updates")],
+                     selection: tab)
+            switch nav.settingsTab {
             case .general: general
             case .agents: agents
             case .mlx: mlx
+            case .updates: UpdatesPane()
             }
             Spacer(minLength: 0)
         }

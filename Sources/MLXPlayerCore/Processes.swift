@@ -151,9 +151,14 @@ public enum ProcessError: Error, LocalizedError {
 /// Runs a command to completion, streaming its output.
 @discardableResult
 public func runCommand(_ executable: URL, _ arguments: [String], environment: [String: String],
+                       workingDirectory: URL? = nil, timeout: TimeInterval? = nil,
                        onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
-    let p = ManagedProcess(executable: executable, arguments: arguments, environment: environment, onLine: onLine)
+    let p = ManagedProcess(executable: executable, arguments: arguments, environment: environment,
+                           workingDirectory: workingDirectory, onLine: onLine)
     try p.start()
+    if let timeout {
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { if p.isRunning { p.terminate(grace: 1) } }
+    }
     let code = await p.waitUntilExit()
     if code != 0 { throw ProcessError.failed(command: executable.lastPathComponent, code: code) }
     return code

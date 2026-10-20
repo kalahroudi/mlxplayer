@@ -23,6 +23,7 @@ enum Screen: String, CaseIterable, Identifiable {
 @MainActor @Observable
 final class Navigator {
     var screen: Screen = .server
+    var settingsTab: SettingsView.Tab = .general
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -41,6 +42,11 @@ struct MLXPlayerApp: App {
     init() {
         // Build-time helper: `MLXPlayer --write-iconset DIR` renders the app icon, then exits.
         let args = CommandLine.arguments
+        // The updater runs this on a freshly built app before replacing the installed one.
+        if args.contains("--self-test") {
+            print("ok \(Bundle.main.object(forInfoDictionaryKey: "MLXCommit") as? String ?? "unknown")")
+            exit(0)
+        }
         if let i = args.firstIndex(of: "--write-iconset"), i + 1 < args.count {
             writeIconSet(to: URL(fileURLWithPath: args[i + 1]))
             exit(0)
