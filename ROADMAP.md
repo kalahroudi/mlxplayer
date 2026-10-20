@@ -6,6 +6,7 @@ Status as of v0.1.2. Items are ordered by value to users.
 
 - [ ] Switch models while a server is loaded under real load (code handles it: waits for running requests, restores the previous model on failure; only compile-checked in the UI so far)
 - [ ] Developer ID signing and notarization (workflow is written, no certificate has run it; `scripts/verify-release.sh vX.Y.Z` checks the result)
+- [ ] Server on the local network (Server > Network > "Local network", host 0.0.0.0): never tested from another device. Check that a phone or second Mac reaches `http://<this-mac-ip>:8080/v1` with and without a loaded model, streaming works, the macOS firewall prompt and CORS behave, and nothing is exposed while set to "This Mac only"
 - [ ] GPU wired limit "Keep after restart" launch daemon (the privileged install has not been run)
 
 ## Build next
@@ -22,17 +23,6 @@ Status as of v0.1.2. Items are ordered by value to users.
 - [ ] Quality ranking from a refreshable benchmark table (today a size/quantization heuristic)
 - [ ] Advisor free text understood by a model instead of keyword matching
 - [ ] Remove the unused `logs/` folder, rotate `swap.log`
-
-## Done recently
-
-- [x] Memory pressure responses verified under real pressure (state goes Normal, High, Normal; the prompt cache is trimmed with a restart). The app now also polls the kernel level, because the dispatch event can stay silent
-- [x] Update from a published release verified (0.1.0 to 0.1.1)
-- [x] Only one copy of the app runs: a second launch used to reap the first copy's server and fight it for the ports
-- [x] Menu bar title holds still while the popover is open
-- [x] Usage log pruned on disk (30 days)
-- [x] Chat survives leaving the screen and is saved (last 100 turns, Clear deletes it)
-- [x] Global model switcher, styled dropdowns, live speed tile
-- [x] Apache 2.0, README, GitHub Pages, v0.1.0 release
 
 ## Not planned
 
