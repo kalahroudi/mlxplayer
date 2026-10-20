@@ -1,6 +1,6 @@
 # Roadmap
 
-Status as of v0.1.2. Items are ordered by value to users.
+Status as of v0.1.3. Items are ordered by value to users.
 
 ## Verify on real hardware / in release
 
