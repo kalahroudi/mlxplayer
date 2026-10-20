@@ -231,11 +231,19 @@ final class AppModel {
             isInstalled = true
             await refreshVersion()
             supportedFlags = nil
-            showSetup = false
         } catch {
             installLog.append("✗ \(error.localizedDescription)")
         }
         installing = false
+    }
+
+    func finishSetup() { showSetup = false }
+
+    /// Points the app at a user-provided mlx_lm.server instead of the managed install.
+    func useExisting(server path: String) {
+        app.customServerPath = path
+        isInstalled = true
+        supportedFlags = nil
     }
 
     func upgradeMLX() async {
