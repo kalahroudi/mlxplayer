@@ -106,6 +106,18 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
         } else {
             button.title = ""
         }
+        keepPopoverUnderIcon()
+    }
+
+    /// The icon changes width while a model loads (text appears or goes), which moves it in the menu bar.
+    /// Without re-anchoring, an open popover stays where it was and no longer sits under the icon.
+    private func keepPopoverUnderIcon() {
+        guard popover.isShown, let button = statusItem?.button else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.popover.isShown else { return }
+            button.superview?.layoutSubtreeIfNeeded()
+            self.popover.positioningRect = button.bounds
+        }
     }
 
     @objc private func togglePopover(_ sender: Any?) {
