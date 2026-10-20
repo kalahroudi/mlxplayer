@@ -69,7 +69,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
     }
 
     private var agents: some View {
@@ -136,7 +136,7 @@ struct SettingsView: View {
                 if !model.installLog.isEmpty { LogPane(lines: model.installLog, height: 160).padding(.top, 8) }
             }
         }
-        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
     }
 
     /// Runs `claude mcp add` through a login shell so PATH matches the user's terminal.
