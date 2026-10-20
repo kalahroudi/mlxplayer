@@ -406,6 +406,7 @@ final class AppModel {
             do {
                 try await supervisor.start(settings: attempt, port: backendPort, supportedFlags: supportedFlags,
                                            customExecutable: app.customServerPath)
+                await reconcileServerState()
                 applied = attempt
                 if draft.modelID == id, attempt != draft, !retried { draft = attempt }
                 proxy?.contextLimit = effectiveContextLimit
@@ -423,6 +424,7 @@ final class AppModel {
             } catch {
                 failures.append(Date())
                 lastError = error.localizedDescription
+                await reconcileServerState()
                 return
             }
         }
@@ -450,6 +452,7 @@ final class AppModel {
 
     func stopServer() async {
         await supervisor.stop()
+        await reconcileServerState()
         applied = nil
     }
 

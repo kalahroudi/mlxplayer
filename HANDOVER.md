@@ -10,7 +10,7 @@ browser, or see the published canvas: https://claude.ai/artifact/PtGiNC8E4Wk8ig7
 
 | Part | Status |
 |---|---|
-| `Sources/MLXPlayerCore` | Done. **92 tests pass** (plus 1 live test that is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
+| `Sources/MLXPlayerCore` | Done. **94 tests pass** (plus 1 live test that is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
 | `Sources/mlxplayer-mcp` | Done. Verified end to end against the running app (get_status, start_server, stop_server). |
 | `Sources/MLXPlayer` | Compiles. App entry, popover, sidebar shell and all screens written (Setup, Discover, Library, Server, Advisor, Memory, Usage, Logs, Settings). |
 | `scripts/bundle.sh` | Builds `dist/MLX Player.app` (Info.plist, LSUIElement, macOS 14, icon, mcp copied, ad-hoc signed, sandbox off). |
@@ -146,3 +146,11 @@ swift run mlxplayer-mcp     # stdio MCP server
 - **Release tooling**: `scripts/make-dmg.sh VERSION`, `scripts/notarize.sh DMG` (needs a notarytool keychain profile), `.github/workflows/release.yml` (tag `vX.Y.Z` builds, tests, signs and notarizes if the secrets `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD` exist, then publishes the DMG and `SHA256SUMS`). `SIGN_IDENTITY="Developer ID Application: ..." scripts/bundle.sh` signs with the hardened runtime. Signing and notarization have not been run (no Developer ID here).
 - **Benchmark**: Server and Library have a Benchmark button; it streams a fixed prompt, stores tokens/s per model in settings, and the Advisor uses measured speeds and a calibration factor (only from models with 3B+ active params; a 0.5B model measured 379 t/s on the M4 Max because small models are overhead bound, not bandwidth bound).
 - **GPU limit persistence**: Memory screen "Keep after restart" installs `/Library/LaunchDaemons/com.mlxplayer.gpulimit.plist` through the admin prompt; Reset removes it. Plist and script are unit tested; the privileged install itself has not been run.
+
+## Session notes (state sync, chat, Dock, updater)
+
+- **Stale buttons fix**: supervisor state now flows through an ordered `AsyncStream` into `AppModel.handle(state:)`, and `startServer`/`stopServer`/the 1.5 s tick call `reconcileServerState()` (the supervisor is the source of truth). Before, `startServer` returned before `.running` reached the main actor, so the proxy's first on-demand request failed with `model_unavailable` and the UI lagged. `testStateCallbacksEndWhereTheSupervisorIs` pins the callback order.
+- **Popover**: "This Mac" card (memory, GPU, VRAM vs GPU limit, pressure), loaded model marked in the switch list, usage refreshes every 3 s. Not in the original mockup; added on request. Render with `MLXPlayer --snapshot DIR popover [dark]`.
+- **Chat** screen (sidebar): MacPaw `OpenAI` client streaming through the public port (loads the model on demand) and `swift-markdown-ui` for rendering. Chat history is in-memory only.
+- **Dock icon**: the app is `LSUIElement`, but `DockPresence` switches to a regular app (Dock, Cmd-Tab) while the main window is open and back to menu-bar-only on close. Dock click reopens the window.
+- **Updater**: log persists in `update.log`, download shows a real progress bar, and after the restart a toast says whether the update arrived or why not (`update-pending.json` records from/to). Note an installed build whose commit equals the branch head correctly reports "Up to date".
