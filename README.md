@@ -134,20 +134,7 @@ Notes: the sandbox must stay off because the app spawns processes. `mlx_lm.serve
 
 ## Roadmap
 
-Built but not yet verified on real hardware or in release:
-
-- Developer ID signing and notarization (the workflow is written, no certificate has run it)
-- Updating from a real published release (only the branch/source path was run end to end)
-- Installing the GPU limit launch daemon ("Keep after restart")
-- Memory pressure responses under real pressure
-
-Not built:
-
-- Playground screen
-- Quality ranking from a refreshable benchmark table (today it is a size/quantization heuristic)
-- AI-based Advisor free text (today it is keyword matching)
-- Persistent chat history (in memory only)
-- Live "trim prompt cache" (mlx-lm has no API; the app restarts with a smaller cache when idle)
+See [ROADMAP.md](ROADMAP.md).
 
 ## License
 

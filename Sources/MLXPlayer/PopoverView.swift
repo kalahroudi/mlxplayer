@@ -233,11 +233,36 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button("Open") { openMain(.server, nav: nav) }.buttonStyle(.pill(height: 26))
-            Button("Logs") { openMain(.logs, nav: nav) }.buttonStyle(.pill(height: 26))
+            FooterIcon(symbol: "macwindow", help: "Open MLX Player") { openMain(.overview, nav: nav) }
+            FooterIcon(symbol: "text.alignleft", help: "Logs") { openMain(.logs, nav: nav) }
             Spacer()
-            Button("Quit") { Task { await model.stopServer(); NSApp.terminate(nil) } }.buttonStyle(.pill(height: 26))
+            FooterIcon(symbol: "power", help: "Quit MLX Player", danger: true) { Task { await model.stopServer(); NSApp.terminate(nil) } }
         }
+    }
+}
+
+/// Square vector icon button for the popover footer.
+private struct FooterIcon: View {
+    let symbol: String
+    let help: String
+    var danger = false
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(hover && danger ? Color.bad : (hover ? Color.primary : Color.secondary))
+                .frame(width: 30, height: 28)
+                .background(hover ? (danger ? Color.bad.opacity(0.14) : Color.primary.opacity(0.1)) : Color.primary.opacity(0.05),
+                            in: RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 
