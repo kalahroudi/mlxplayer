@@ -19,6 +19,7 @@ struct MainWindow: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .bottomTrailing) { ToastHost() }
         .onChange(of: model.app.appearance, initial: true) { _, mode in Self.apply(mode) }
     }
 

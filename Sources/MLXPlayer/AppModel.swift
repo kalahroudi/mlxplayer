@@ -49,6 +49,8 @@ final class AppModel {
     var activeRequests = 0
     var proxyError: String?
     var lastError: String?
+    /// Background results shown as toasts. Newest last; each removes itself after a few seconds.
+    private(set) var toasts: [Toast] = []
     var uptime: TimeInterval = 0
 
     // MARK: Live stats
@@ -157,10 +159,27 @@ final class AppModel {
         installedVersion = try? await installer.installedVersion()
     }
 
+    func notify(_ kind: Toast.Kind, _ title: String, detail: String? = nil, action: String? = nil, screen: Screen? = nil) {
+        let toast = Toast(kind: kind, title: title, detail: detail, actionTitle: action, screen: screen)
+        toasts.append(toast)
+        if toasts.count > 4 { toasts.removeFirst(toasts.count - 4) }
+        let seconds: UInt64 = kind == .error ? 12 : 6
+        Task { try? await Task.sleep(nanoseconds: seconds * 1_000_000_000); dismiss(toast.id) }
+    }
+
+    func dismiss(_ id: UUID) { toasts.removeAll { $0.id == id } }
+
     private func handle(state: ServerState) {
+        let previous = serverState
         serverState = state
+        if state == .running, previous != .running {
+            notify(.success, "Model loaded", detail: activeModelID.map { ModelMetadata.fromName($0).displayName }, action: "Open server", screen: .server)
+        }
         runningFlag.value = (state == .running)
-        if case .failed(let message) = state { lastError = message }
+        if case .failed(let message) = state {
+            lastError = message
+            notify(.error, "Model failed to start", detail: message, action: "Show logs", screen: .logs)
+        }
         if state == .stopped || state == .stopping { uptime = 0 }
     }
 
@@ -506,6 +525,11 @@ final class AppModel {
         if p.finished || p.failed != nil {
             downloadsByID[p.modelID] = nil
             if p.finished { refreshInstalled() }
+            if p.finished {
+                notify(.success, "Download complete", detail: ModelMetadata.fromName(p.modelID).displayName, action: "Open library", screen: .library)
+            } else if let why = p.failed, why != "Paused" {
+                notify(.error, "Download failed", detail: "\(ModelMetadata.fromName(p.modelID).displayName): \(why)", action: "Show logs", screen: .logs)
+            }
             if p.finished {
                 Task { try? await Task.sleep(nanoseconds: 2_000_000_000); downloads[p.modelID] = nil }
             }

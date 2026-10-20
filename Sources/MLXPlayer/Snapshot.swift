@@ -32,6 +32,10 @@ enum Snapshot {
         window.setFrameOrigin(NSPoint(x: 80, y: 80))
         window.orderFrontRegardless()
 
+        if args.contains("toast") {
+            model.notify(.success, "Download complete", detail: "Qwen3-8B-4bit", action: "Open library", screen: .library)
+            model.notify(.error, "Model failed to start", detail: "Not enough memory for 128K context. Try a smaller model.", action: "Show logs", screen: .logs)
+        }
         for _ in 0..<4 { model.sampleSystem(); try? await Task.sleep(for: .milliseconds(400)) }
         for screen in Screen.allCases where only == nil || only == screen {
             nav.screen = screen
@@ -40,7 +44,7 @@ enum Snapshot {
             guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
             host.cacheDisplay(in: host.bounds, to: rep)
             if let png = rep.representation(using: .png, properties: [:]) {
-                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "")\(format.map { "-" + $0.rawValue } ?? "").png"))
+                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "")\(format.map { "-" + $0.rawValue } ?? "")\(args.contains("toast") ? "-toast" : "").png"))
             }
         }
     }
