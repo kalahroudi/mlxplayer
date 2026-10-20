@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import MLXPlayerCore
+import CryptoKit
 
 /// Updates the app from the repo's main branch: check GitHub, build the new commit, verify it,
 /// swap it in after quitting, and roll back if the new version doesn't start.
@@ -84,6 +85,7 @@ final class Updater {
 
     func install() async {
         guard let info = available, !busy else { return }
+        if let release = info.release { await installRelease(release); return }
         log = []
         do {
             try preflight()
@@ -111,13 +113,83 @@ final class Updater {
         }
     }
 
-    private func preflight() throws {
+    /// Prebuilt path: download the disk image, check its hash, unpack, verify, swap. No Xcode tools needed.
+    private func installRelease(_ release: ReleaseInfo) async {
+        log = []
+        let fm = FileManager.default
+        let staging = paths.root.appendingPathComponent("staging", isDirectory: true)
+        let mount = staging.appendingPathComponent("mnt", isDirectory: true)
+        var mounted = false
+        do {
+            try preflight(needsBuildTools: false)
+            try? fm.removeItem(at: staging)
+            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+
+            phase = .working("Downloading \(release.tag)")
+            let dmg = staging.appendingPathComponent(release.dmgName)
+            let (tmp, resp) = try await URLSession.shared.download(from: release.dmgURL)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.network("The download failed.") }
+            try fm.moveItem(at: tmp, to: dmg)
+
+            phase = .working("Checking the download")
+            try await verifyChecksum(of: dmg, release: release)
+
+            phase = .working("Unpacking")
+            try fm.createDirectory(at: mount, withIntermediateDirectories: true)
+            try await run("/usr/bin/hdiutil", ["attach", dmg.path, "-nobrowse", "-readonly", "-mountpoint", mount.path], cwd: nil,
+                          failure: { .verifyFailed("Couldn't open the disk image. \($0)") })
+            mounted = true
+            let staged = staging.appendingPathComponent("MLX Player.app")
+            try await run("/usr/bin/ditto", [mount.appendingPathComponent("MLX Player.app").path, staged.path], cwd: nil,
+                          failure: { .verifyFailed("The disk image has no app. \($0)") })
+            try await run("/usr/bin/hdiutil", ["detach", mount.path, "-quiet"], cwd: nil, failure: { .verifyFailed($0) })
+            mounted = false
+            try? fm.removeItem(at: dmg)
+
+            phase = .working("Checking the new build")
+            try await verify(staged, expect: nil)
+
+            phase = .working("Restarting")
+            try startSwap(new: staged)
+            await beforeQuit()
+            NSApp.terminate(nil)
+        } catch {
+            if mounted { _ = try? await run("/usr/bin/hdiutil", ["detach", mount.path, "-force", "-quiet"], cwd: nil, failure: { .verifyFailed($0) }) }
+            phase = .failed(error.localizedDescription)
+            log.append("✗ \(error.localizedDescription)")
+        }
+    }
+
+    /// Compares the download with the release's SHA256SUMS. Without a published sum it only warns.
+    private func verifyChecksum(of file: URL, release: ReleaseInfo) async throws {
+        guard let sumsURL = release.checksumsURL else {
+            log.append("This release has no checksum file; relying on the code signature only.")
+            return
+        }
+        let (data, _) = try await URLSession.shared.data(from: sumsURL)
+        guard let sums = String(data: data, encoding: .utf8),
+              let expected = UpdateChecker.checksum(in: sums, for: release.dmgName) else {
+            throw UpdateError.verifyFailed("The checksum file doesn't list \(release.dmgName).")
+        }
+        let actual = try await Task.detached { () -> String in
+            var hasher = SHA256()
+            let handle = try FileHandle(forReadingFrom: file)
+            defer { try? handle.close() }
+            while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty { hasher.update(data: chunk) }
+            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        }.value
+        guard actual == expected else { throw UpdateError.verifyFailed("The download is damaged (checksum mismatch).") }
+        log.append("Checksum matches.")
+    }
+
+    private func preflight(needsBuildTools: Bool = true) throws {
         guard isBundled else { throw UpdateError.notBundled }
         let dest = Bundle.main.bundleURL
         let fm = FileManager.default
         guard fm.isWritableFile(atPath: dest.deletingLastPathComponent().path), fm.isWritableFile(atPath: dest.path) else {
             throw UpdateError.notWritable(dest.path)
         }
+        guard needsBuildTools else { return }
         guard fm.isExecutableFile(atPath: "/usr/bin/git") else { throw UpdateError.missingTool("git") }
         guard fm.isExecutableFile(atPath: "/usr/bin/xcrun") else { throw UpdateError.missingTool("Swift") }
     }
@@ -146,7 +218,8 @@ final class Updater {
         return head
     }
 
-    private func verify(_ app: URL, expect commit: String) async throws {
+    /// `commit` is the commit a source build must report; a release build only has to start and say ok.
+    private func verify(_ app: URL, expect commit: String?) async throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: app.path) else { throw UpdateError.verifyFailed("The app wasn't produced.") }
         let exe = app.appendingPathComponent("Contents/MacOS/MLXPlayer").path
@@ -160,7 +233,7 @@ final class Updater {
         final class Box: @unchecked Sendable { var out = "" }
         let box = Box()
         let code = try? await runCommand(URL(fileURLWithPath: exe), ["--self-test"], environment: toolEnvironment(), timeout: 20) { box.out += $0 }
-        guard code == 0, box.out.contains(commit) else {
+        guard code == 0, commit.map({ box.out.contains($0) }) ?? box.out.hasPrefix("ok") else {
             throw UpdateError.verifyFailed("It didn't start correctly.")
         }
     }

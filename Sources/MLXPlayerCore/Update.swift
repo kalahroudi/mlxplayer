@@ -23,12 +23,59 @@ public struct BuildInfo: Equatable, Sendable {
     public var shortCommit: String { cleanCommit.map { String($0.prefix(7)) } ?? "dev" }
 }
 
+/// A published GitHub release with a prebuilt disk image.
+public struct ReleaseInfo: Equatable, Sendable {
+    public var tag: String
+    public var version: String
+    public var notes: [String]
+    public var dmgURL: URL
+    public var dmgName: String
+    /// Asset with SHA-256 sums for the release files, when the release has one.
+    public var checksumsURL: URL?
+}
+
 public struct UpdateInfo: Equatable, Sendable {
     public var sha: String
     public var aheadBy: Int
     /// First lines of the commit messages that are new, newest last.
     public var summaries: [String]
+    /// Set when the update is a prebuilt release instead of a build from source.
+    public var release: ReleaseInfo?
     public var shortSha: String { String(sha.prefix(7)) }
+    /// What to show in the UI: the release tag, or the short commit.
+    public var label: String { release?.tag ?? shortSha }
+
+    public init(sha: String, aheadBy: Int, summaries: [String], release: ReleaseInfo? = nil) {
+        self.sha = sha; self.aheadBy = aheadBy; self.summaries = summaries; self.release = release
+    }
+}
+
+/// Dotted version numbers such as "0.2.0" or "v1.4.1-beta.2". A release candidate sorts before its final.
+public enum Version {
+    public static func parse(_ s: String) -> (numbers: [Int], pre: String?)? {
+        var t = s.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("v") || t.hasPrefix("V") { t.removeFirst() }
+        let parts = t.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: true)
+        guard let core = parts.first else { return nil }
+        let nums = core.split(separator: ".").map { Int($0) }
+        guard !nums.isEmpty, !nums.contains(where: { $0 == nil }) else { return nil }
+        return (nums.compactMap { $0 }, parts.count > 1 ? String(parts[1]) : nil)
+    }
+
+    /// True when `a` is a higher version than `b`. Unparseable versions are never newer.
+    public static func isNewer(_ a: String, than b: String) -> Bool {
+        guard let x = parse(a), let y = parse(b) else { return false }
+        for i in 0..<max(x.numbers.count, y.numbers.count) {
+            let l = i < x.numbers.count ? x.numbers[i] : 0, r = i < y.numbers.count ? y.numbers[i] : 0
+            if l != r { return l > r }
+        }
+        switch (x.pre, y.pre) {
+        case (nil, nil): return false
+        case (nil, _): return true
+        case (_, nil): return false
+        case let (l?, r?): return l.compare(r, options: .numeric) == .orderedDescending
+        }
+    }
 }
 
 public enum UpdateStatus: Equatable, Sendable {
@@ -70,6 +117,10 @@ public struct UpdateChecker: Sendable {
     public init(session: URLSession = .shared) { self.session = session }
 
     public func check(_ build: BuildInfo) async throws -> UpdateStatus {
+        // A newer prebuilt release wins: it installs without Xcode tools.
+        if let release = try await latestRelease(repo: build.repo), Version.isNewer(release.version, than: build.version) {
+            return .available(UpdateInfo(sha: release.tag, aheadBy: 0, summaries: release.notes, release: release))
+        }
         guard let current = build.cleanCommit else {
             return .notComparable("This build has no commit recorded.")
         }
@@ -79,6 +130,39 @@ public struct UpdateChecker: Sendable {
         if code == 404 { return .notComparable("This build isn't on \(build.branch) yet.") }
         guard code == 200 else { throw UpdateError.badResponse }
         return try Self.decide(compareJSON: data, head: head)
+    }
+
+    /// The latest published release that has a disk image, or nil when there is none.
+    public func latestRelease(repo: String) async throws -> ReleaseInfo? {
+        let (data, code) = try await get("/repos/\(repo)/releases/latest")
+        if code == 404 { return nil }
+        guard code == 200 else { throw UpdateError.badResponse }
+        return Self.parseRelease(data)
+    }
+
+    static func parseRelease(_ data: Data) -> ReleaseInfo? {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              obj["draft"] as? Bool != true, obj["prerelease"] as? Bool != true,
+              let tag = obj["tag_name"] as? String else { return nil }
+        let assets = obj["assets"] as? [[String: Any]] ?? []
+        func url(_ a: [String: Any]) -> URL? { (a["browser_download_url"] as? String).flatMap(URL.init(string:)) }
+        guard let dmg = assets.first(where: { ($0["name"] as? String)?.hasSuffix(".dmg") == true }),
+              let dmgName = dmg["name"] as? String, let dmgURL = url(dmg) else { return nil }
+        let sums = assets.first { ($0["name"] as? String)?.uppercased().hasPrefix("SHA256SUMS") == true }
+        let notes = ((obj["body"] as? String) ?? "").split(separator: "\n")
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " -*#\r")) }.filter { !$0.isEmpty }
+        return ReleaseInfo(tag: tag, version: tag.hasPrefix("v") ? String(tag.dropFirst()) : tag, notes: Array(notes.prefix(8)),
+                           dmgURL: dmgURL, dmgName: dmgName, checksumsURL: sums.flatMap(url))
+    }
+
+    /// Finds the hash for `file` in `shasum -a 256` output ("<hash>  <name>" per line).
+    public static func checksum(in sums: String, for file: String) -> String? {
+        for line in sums.split(separator: "\n") {
+            let parts = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard parts.count >= 2, parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "*")) == file else { continue }
+            return String(parts[0]).lowercased()
+        }
+        return nil
     }
 
     func headSHA(repo: String, branch: String) async throws -> String {

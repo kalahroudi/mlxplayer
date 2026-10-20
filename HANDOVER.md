@@ -10,7 +10,7 @@ browser, or see the published canvas: https://claude.ai/artifact/PtGiNC8E4Wk8ig7
 
 | Part | Status |
 |---|---|
-| `Sources/MLXPlayerCore` | Done. **76 tests pass** (`swift test`). |
+| `Sources/MLXPlayerCore` | Done. **89 tests pass** (1 live test is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
 | `Sources/mlxplayer-mcp` | Done. Verified end to end against the running app (get_status, start_server, stop_server). |
 | `Sources/MLXPlayer` | Compiles. App entry, popover, sidebar shell and all screens written (Setup, Discover, Library, Server, Advisor, Memory, Usage, Logs, Settings). |
 | `scripts/bundle.sh` | Builds `dist/MLX Player.app` (Info.plist, LSUIElement, macOS 14, icon, mcp copied, ad-hoc signed, sandbox off). |
@@ -92,8 +92,7 @@ Design rules the user set (keep them):
 - **KV cache quantization**: `--kv-bits` exists (also `--kv-group-size`, `--quantized-kv-start`). Exposed as Server > KV cache. mlx-lm serves one request at a time when it is set.
 - **Trim prompt cache** cannot be done live (no API). `AppModel.trimCacheWhenIdle` restarts with a smaller
   `--prompt-cache-bytes` once idle. The Memory screen should say so.
-- **Speed estimates** use memory bandwidth x efficiency (0.8 dense, 0.45 MoE). Calibrate against real runs, ideally with a
-  "benchmark this model" button.
+- **Speed estimates** use memory bandwidth x efficiency (0.8 dense, 0.45 MoE), now calibrated by the Benchmark button.
 - **Quality score** is a size/quantization heuristic, not a benchmark. Replace with a refreshable benchmark table.
 - **GPU wired limit**: Apply/Reset use an `osascript` admin prompt and last until restart. A launch daemon to persist it is not built.
 - Model Advisor free-text uses keyword matching (`AdvisorTask.infer`), no AI.
@@ -143,4 +142,7 @@ swift run mlxplayer-mcp     # stdio MCP server
 - Install: clone or fetch into `~/Library/Application Support/MLX Player/source`, run `scripts/bundle.sh` into `staging`, verify (codesign, files present, `--self-test` prints the commit), then `swap.sh` replaces the app after quit. The new app writes `update-ok` after 4 s; without it within 40 s the old app is restored and a notice is shown.
 - Needs git and the Xcode tools on the user's Mac, and a writable install location.
 - Tested for real against a branch: 0ff9953 to 69a0cc2 in about 40 s. For scripted runs: `open -n --env MLX_UPDATE_NOW=1 "MLX Player.app"`. Test builds use `MLX_BRANCH=<branch> scripts/bundle.sh`.
-- Not done: prebuilt releases from CI (would remove the toolchain requirement), Developer ID signing and notarization.
+- **Prebuilt releases**: the check first asks GitHub for the latest release with a `.dmg`; if its version is newer than the running one, the updater downloads it, verifies `SHA256SUMS`, unpacks, checks the signature and `--self-test`, then swaps with the same rollback script. No Xcode tools needed. With no release it falls back to the branch/source path above. The release path is covered by unit tests and a manual check of the mount/ditto/verify steps, but has **not** been run against a real published release.
+- **Release tooling**: `scripts/make-dmg.sh VERSION`, `scripts/notarize.sh DMG` (needs a notarytool keychain profile), `.github/workflows/release.yml` (tag `vX.Y.Z` builds, tests, signs and notarizes if the secrets `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD` exist, then publishes the DMG and `SHA256SUMS`). `SIGN_IDENTITY="Developer ID Application: ..." scripts/bundle.sh` signs with the hardened runtime. Signing and notarization have not been run (no Developer ID here).
+- **Benchmark**: Server and Library have a Benchmark button; it streams a fixed prompt, stores tokens/s per model in settings, and the Advisor uses measured speeds and a calibration factor (only from models with 3B+ active params; a 0.5B model measured 379 t/s on the M4 Max because small models are overhead bound, not bandwidth bound).
+- **GPU limit persistence**: Memory screen "Keep after restart" installs `/Library/LaunchDaemons/com.mlxplayer.gpulimit.plist` through the admin prompt; Reset removes it. Plist and script are unit tested; the privileged install itself has not been run.

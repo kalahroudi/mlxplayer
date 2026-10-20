@@ -30,7 +30,7 @@ struct PopoverView: View {
                         Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.accentIndigo)
                         Text("Update available").font(.system(size: 12.5, weight: .medium))
                         Spacer()
-                        Text(info.shortSha).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                        Text(info.label).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                     }
                     .padding(9)
                     .background(Color.accentIndigo.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))

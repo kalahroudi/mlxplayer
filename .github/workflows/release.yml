@@ -56,13 +56,18 @@ jobs:
           xcrun notarytool store-credentials ci-notary --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD"
           NOTARY_PROFILE=ci-notary scripts/notarize.sh dist/MLX-Player-*.dmg
 
+      - name: Checksums
+        run: cd dist && shasum -a 256 MLX-Player-*.dmg > SHA256SUMS && cat SHA256SUMS
+
       - uses: actions/upload-artifact@v4
         with:
           name: MLX-Player-dmg
-          path: dist/*.dmg
+          path: |
+            dist/*.dmg
+            dist/SHA256SUMS
 
       - name: Publish release
         if: ${{ github.ref_type == 'tag' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg --generate-notes --title "MLX Player $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/SHA256SUMS --generate-notes --title "MLX Player $GITHUB_REF_NAME"
