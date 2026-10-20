@@ -10,8 +10,11 @@ struct MemoryView: View {
         @Bindable var model = model
         ScreenFrame {
             PageHeader(title: "Memory", subtitle: "\(formatBytes(model.hardware.memoryBytes)) unified") {
+              HStack(spacing: 10) {
                 Segmented(options: [(AppSettings.Profile.performance, "Performance"), (.balanced, "Balanced"), (.saver, "Saver")],
                           selection: Binding(get: { model.app.profile }, set: { p in model.app.apply(profile: p) }))
+                HelpButton(title: "Memory and limits", entries: HelpContent.memory)
+              }
             }
         } content: {
             TabStrip(options: [(Tab.live, "Live & limits"), (.rules, "Loading & rules")], selection: $tab)

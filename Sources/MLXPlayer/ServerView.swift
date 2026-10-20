@@ -46,6 +46,7 @@ struct ServerView: View {
                     Button("Start") { Task { await model.startServer() } }
                         .buttonStyle(.pillPrimary).disabled(model.draft.modelID.isEmpty)
                 }
+                HelpButton(title: "Server settings", entries: HelpContent.server)
             }
         }
     }

@@ -13,6 +13,7 @@ struct LogsView: View {
                     TextBox(placeholder: "Filter", text: $filter, width: 180, mono: false)
                     Button("Copy") { model.copy(lines.joined(separator: "\n")) }.buttonStyle(.pill)
                     Button("Clear") { model.logs.clear(); model.logLines = [] }.buttonStyle(.pill)
+                    HelpButton(title: "Logs", entries: HelpContent.logs)
                 }
             }
         } content: {

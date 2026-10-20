@@ -21,7 +21,7 @@ struct SettingsView: View {
 
     var body: some View {
         ScreenFrame {
-            PageHeader(title: "Settings")
+            PageHeader(title: "Settings") { HelpButton(title: "Settings", entries: HelpContent.settings) }
         } content: {
             TabStrip(options: [(Tab.general, "General"), (.agents, "Agents (MCP)"), (.mlx, "mlx-lm"), (.updates, "Updates")],
                      selection: tab)
