@@ -1,0 +1,101 @@
+import XCTest
+@testable import MLXPlayerCore
+
+final class SettingsTests: XCTestCase {
+    func testCommandMatchesUsersExample() {
+        var s = ServerSettings(modelID: "mlx-community/Qwen2.5-14B-Instruct-4bit")
+        s.chatTemplateArgs = #"{"enable_thinking":false}"#
+        let args = s.arguments()
+        XCTAssertEqual(args[0], "--model")
+        XCTAssertEqual(args[1], "mlx-community/Qwen2.5-14B-Instruct-4bit")
+        XCTAssertTrue(args.contains("--chat-template-args"))
+        XCTAssertEqual(args[args.firstIndex(of: "--chat-template-args")! + 1], #"{"enable_thinking":false}"#)
+        XCTAssertEqual(args[args.firstIndex(of: "--port")! + 1], "8080")
+    }
+
+    func testUnsupportedFlagsAreDropped() {
+        var s = ServerSettings(modelID: "m/x")
+        s.draftModel = "m/draft"
+        let supported: Set<String> = ["--model", "--port", "--host", "--temp"]
+        let args = s.arguments(supported: supported)
+        XCTAssertFalse(args.contains("--draft-model"))
+        XCTAssertFalse(args.contains("--top-k"))
+        XCTAssertTrue(args.contains("--temp"))
+    }
+
+    func testPortOverrideForProxy() {
+        let s = ServerSettings(modelID: "m/x")
+        XCTAssertEqual(s.arguments(portOverride: 8081)[s.arguments(portOverride: 8081).firstIndex(of: "--port")! + 1], "8081")
+    }
+
+    func testPromptCacheBytes() {
+        var s = ServerSettings(modelID: "m/x")
+        s.promptCacheGB = 8
+        let args = s.arguments()
+        XCTAssertEqual(args[args.firstIndex(of: "--prompt-cache-bytes")! + 1], "8589934592")
+        s.promptCacheEnabled = false
+        XCTAssertFalse(s.arguments().contains("--prompt-cache-bytes"))
+    }
+
+    func testFlagProbe() {
+        let help = "usage: mlx_lm.server [-h] [--model MODEL] [--host HOST]\n  --prompt-cache-bytes PROMPT_CACHE_BYTES\n  --chat-template-args CHAT_TEMPLATE_ARGS"
+        let flags = FlagProbe.parse(helpText: help)
+        XCTAssertTrue(flags.contains("--prompt-cache-bytes"))
+        XCTAssertTrue(flags.contains("--chat-template-args"))
+        XCTAssertFalse(flags.contains("--max-kv-size"))
+    }
+
+    func testCommandPreviewQuotesJSON() {
+        var s = ServerSettings(modelID: "m/x")
+        s.chatTemplateArgs = #"{"enable_thinking":false}"#
+        XCTAssertTrue(s.commandPreview().contains(#"'{"enable_thinking":false}'"#))
+    }
+
+    func testStorePersistsPerModel() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let paths = AppPaths(root: dir)
+        let store = SettingsStore(paths: paths)
+        var s = ServerSettings(modelID: "m/x")
+        s.contextLength = 65_536
+        store.save(s)
+        var app = store.app
+        app.idleUnloadMinutes = 7
+        store.app = app
+        let reloaded = SettingsStore(paths: paths)
+        XCTAssertEqual(reloaded.settings(for: "m/x").contextLength, 65_536)
+        XCTAssertEqual(reloaded.app.idleUnloadMinutes, 7)
+        XCTAssertEqual(reloaded.settings(for: "other").contextLength, 32_768)
+    }
+
+    func testProfiles() {
+        var a = AppSettings()
+        a.apply(profile: .saver)
+        XCTAssertEqual(a.idleUnloadMinutes, 5)
+        a.apply(profile: .performance)
+        XCTAssertEqual(a.idleUnloadMinutes, 0)
+    }
+}
+
+final class MemoryPolicyTests: XCTestCase {
+    func testEscalation() {
+        let s = AppSettings()
+        XCTAssertEqual(MemoryPolicy.actions(level: .normal, swapBytes: 0, settings: s), [])
+        XCTAssertEqual(MemoryPolicy.actions(level: .warning, swapBytes: 0, settings: s), [.trimPromptCache(toPercent: 50)])
+        XCTAssertEqual(MemoryPolicy.actions(level: .high, swapBytes: 0, settings: s),
+                       [.trimPromptCache(toPercent: 50), .capContext(tokens: 16_384)])
+        let swap = UInt64(3 * 1_073_741_824)
+        XCTAssertTrue(MemoryPolicy.actions(level: .critical, swapBytes: swap, settings: s).contains(.unloadModel))
+        XCTAssertFalse(MemoryPolicy.actions(level: .critical, swapBytes: 0, settings: s).contains(.unloadModel))
+    }
+
+    func testHighIsWarningWithSwap() {
+        XCTAssertEqual(MemoryPolicy.level(system: .warning, swapBytes: 1_000_000_000), .high)
+        XCTAssertEqual(MemoryPolicy.level(system: .warning, swapBytes: 1_000), .warning)
+    }
+
+    func testDisabledRulesAreSkipped() {
+        var s = AppSettings()
+        s.trimCacheOnWarning = false
+        XCTAssertEqual(MemoryPolicy.actions(level: .warning, swapBytes: 0, settings: s), [])
+    }
+}
