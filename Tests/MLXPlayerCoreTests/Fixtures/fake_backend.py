@@ -14,9 +14,10 @@ class H(BaseHTTPRequestHandler):
         req = json.loads(self.rfile.read(n) or b"{}")
         if req.get("stream"):
             self.send_response(200); self.send_header("Content-Type", "text/event-stream"); self.end_headers()
-            for i in range(5):
+            n = min(int(req.get("max_tokens", 5)), 40)
+            for i in range(n):
                 self.wfile.write(f'data: {{"choices":[{{"delta":{{"content":"t{i}"}}}}]}}\n\n'.encode()); self.wfile.flush()
-                time.sleep(0.05)
+                time.sleep(0.05 if n <= 5 else 0.02)
             opts = req.get("stream_options") or {}
             if opts.get("include_usage"):
                 self.wfile.write(b'data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":5}}\n\n')

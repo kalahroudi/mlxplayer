@@ -77,6 +77,10 @@ public struct Advisor: Sendable {
     public var hardware: HardwareProfile
     /// Memory kept free for macOS and other apps.
     public var reserveBytes: UInt64
+    /// Multiplier from benchmarks on this Mac (1 when none). Applied to speed estimates.
+    public var speedCalibration: Double = 1
+    /// Measured decode speed per model id; wins over the estimate.
+    public var measuredSpeeds: [String: Double] = [:]
 
     public static let contextSteps = [4_096, 8_192, 16_384, 32_768, 65_536, 131_072, 262_144]
 
@@ -99,6 +103,12 @@ public struct Advisor: Sendable {
 
     /// Single-stream decode speed is bound by how fast the active weights stream from memory.
     public func tokensPerSecond(_ m: ModelMetadata) -> Double {
+        if let measured = measuredSpeeds[m.id] { return measured }
+        return rawTokensPerSecond(m) * speedCalibration
+    }
+
+    /// The bandwidth-based estimate before calibration.
+    public func rawTokensPerSecond(_ m: ModelMetadata) -> Double {
         let active = m.activeParamsB ?? m.totalParamsB ?? 8
         let bytesPerParam = (Double(m.bits) + (m.bits < 16 ? 0.5 : 0)) / 8
         let bytesPerToken = active * 1e9 * bytesPerParam
