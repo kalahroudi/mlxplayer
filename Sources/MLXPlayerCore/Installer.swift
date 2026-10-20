@@ -165,11 +165,23 @@ public final class Installer: @unchecked Sendable {
     }
 
     public func installedVersion() async throws -> String {
-        final class Box: @unchecked Sendable { var text = "" }
+        // Read the package metadata straight from the venv: no process, so no output race.
+        let lib = paths.venv.appendingPathComponent("lib", isDirectory: true)
+        let pythons = (try? FileManager.default.contentsOfDirectory(atPath: lib.path)) ?? []
+        for py in pythons {
+            let site = lib.appendingPathComponent(py).appendingPathComponent("site-packages")
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: site.path)) ?? []
+            if let d = names.first(where: { $0.hasPrefix("mlx_lm-") && $0.hasSuffix(".dist-info") }) {
+                return String(d.dropFirst("mlx_lm-".count).dropLast(".dist-info".count))
+            }
+        }
+        final class Box: @unchecked Sendable { var lines: [String] = [] }
         let box = Box()
-        try await runCommand(paths.venvPython,
-                             ["-c", "import importlib.metadata as m; print(m.version('mlx-lm'))"],
-                             environment: uvEnvironment) { box.text = $0 }
-        return box.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try await runCommand(paths.venvPython,
+                                 ["-c", "import importlib.metadata as m; print(m.version('mlx-lm'))"],
+                                 environment: uvEnvironment) { box.lines.append($0) }
+        guard let v = box.lines.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }).last(where: { !$0.isEmpty })
+        else { throw ProcessError.failed(command: "python", code: 0) }
+        return v
     }
 }
