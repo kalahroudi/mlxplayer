@@ -64,6 +64,13 @@ public struct DownloadProgress: Equatable, Sendable {
     public var finished = false
     public var failed: String?
 
+    public init(modelID: String, downloadedBytes: UInt64, totalBytes: UInt64?, bytesPerSecond: Double,
+                finished: Bool = false, failed: String? = nil) {
+        self.modelID = modelID; self.downloadedBytes = downloadedBytes
+        self.totalBytes = totalBytes; self.bytesPerSecond = bytesPerSecond
+        self.finished = finished; self.failed = failed
+    }
+
     public var fraction: Double {
         guard let t = totalBytes, t > 0 else { return 0 }
         return min(Double(downloadedBytes) / Double(t), 1)
