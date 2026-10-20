@@ -88,7 +88,7 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 Point any OpenAI-compatible client at `http://127.0.0.1:8080/v1` (any API key value works). The model loads on the first request.
 
-To reach it from another computer, set Server > Network > Host to "Local network" (the app copies this Mac's LAN URL) or "Tailscale" (only your tailnet devices can connect, and the app copies your `*.ts.net` URL). Nothing to configure by hand.
+To reach it from another computer, set Server > Network > Host to "Local network" (the app copies this Mac's LAN URL) or "Tailscale" (only your tailnet devices can connect; the app publishes HTTPS with `tailscale serve` and copies your `https://*.ts.net` URL). Nothing to configure by hand.
 
 ## Switch models
 

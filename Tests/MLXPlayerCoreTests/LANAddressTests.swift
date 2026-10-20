@@ -59,3 +59,20 @@ final class PeerFilterTests: XCTestCase {
         XCTAssertTrue(rejected == nil || rejected!.isEmpty)
     }
 }
+
+final class TailscaleServeTests: XCTestCase {
+    private func state(_ json: String) -> Tailscale.ServeState { Tailscale.parseServe(Data(json.utf8)) }
+
+    func testServeStates() {
+        XCTAssertEqual(state("{}"), .off)
+        XCTAssertEqual(state(#"{"TCP":{"443":{"HTTPS":true}},"Web":{"mac.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:8080"}}}}}"#), .ours(port: 8080))
+        XCTAssertEqual(state(#"{"Web":{"mac.ts.net:443":{"Handlers":{"/":{"Proxy":"http://192.168.1.5:3000"}}}}}"#), .other("http://192.168.1.5:3000"))
+        XCTAssertEqual(state(#"{"Web":{"mac.ts.net:8443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:1"}}}}}"#), .off)
+    }
+
+    func testExplainsDisabledHTTPS() {
+        let out = "Serve is not enabled on your tailnet.\nTo enable, visit:\n\n         https://login.tailscale.com/f/serve?node=abc\n"
+        XCTAssertEqual(Tailscale.explain(out), "HTTPS is off for your tailnet. Enable it once at https://login.tailscale.com/f/serve?node=abc")
+        XCTAssertEqual(Tailscale.explain("some other failure\nmore"), "some other failure")
+    }
+}

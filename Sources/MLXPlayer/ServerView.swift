@@ -144,7 +144,9 @@ struct ServerView: View {
     private var tailscaleNote: String {
         guard model.tailscaleInstalled else { return "Tailscale is not installed on this Mac." }
         guard let ts = model.tailscale else { return "Tailscale is not signed in." }
-        return ts.connected ? "Reachable from your other devices on the tailnet." : "Tailscale is off. Turn it on to use this URL."
+        guard ts.connected else { return "Tailscale is off. Turn it on to use this URL." }
+        if model.tailscaleHTTPS { return "HTTPS, reachable from your other devices on the tailnet." }
+        return model.tailscaleNote ?? "Setting up HTTPS…"
     }
 
     private var contextOptions: [Int] {

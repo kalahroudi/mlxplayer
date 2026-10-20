@@ -150,8 +150,10 @@ final class AppModel {
             guard let stream = self?.stateStream else { return }
             for await state in stream { self?.handle(state: state) }
         }
-        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { _ in
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { [weak self] _ in
             sup.killNow()
+            // The HTTPS front door would point at a dead port once the app is gone.
+            if MainActor.assumeIsolated({ self?.weEnabledServe == true }) { Tailscale.disableServe() }
         }
         refreshInstalled()
         updater.confirmLaunch()
@@ -218,15 +220,51 @@ final class AppModel {
     /// Tailscale's view of this Mac, refreshed at launch, when the Tailscale option is chosen and on the timer while it is.
     var tailscale: TailscaleInfo?
     var tailscaleInstalled = Tailscale.isInstalled
+    /// Tailscale is publishing `https://<name>.ts.net` for this Mac's proxy.
+    var tailscaleHTTPS = false
+    /// Why HTTPS is not on, when it could not be switched on.
+    var tailscaleNote: String?
+    private var serveAttempt: (port: Int, at: Date)?
+    private var weEnabledServe = false
+
     func refreshTailscale() {
+        let wantServe = draft.host == Tailscale.hostSetting
+        let port = draft.port > 0 ? draft.port : 8080
+        let lastAttempt = serveAttempt, priorNote = tailscaleNote, ours = weEnabledServe
         Task {
-            let info = await Task.detached { Tailscale.status() }.value
+            let work = await Task.detached { () -> (TailscaleInfo?, Bool, String?, Bool, Bool) in
+                let info = Tailscale.status()
+                var https = false, note: String?, enabled = false, attempted = false
+                let state = Tailscale.serveState()
+                if wantServe, let info, info.connected, !info.dnsName.isEmpty {
+                    switch state {
+                    case .ours(let p) where p == port: https = true
+                    case .other(let what): note = "Tailscale already serves \(what) on HTTPS, so it was left alone."
+                    default:
+                        if lastAttempt?.port != port || Date().timeIntervalSince(lastAttempt!.at) > 60 {
+                            attempted = true
+                            note = Tailscale.enableServe(port: port)
+                            https = note == nil; enabled = https
+                        } else { note = priorNote }
+                    }
+                } else if !wantServe, case .ours = state, ours {
+                    Tailscale.disableServe()
+                }
+                return (info, https, note, enabled, attempted)
+            }.value
             tailscaleInstalled = Tailscale.isInstalled
-            if info != tailscale { tailscale = info }
+            if work.0 != tailscale { tailscale = work.0 }
+            if work.1 != tailscaleHTTPS { tailscaleHTTPS = work.1 }
+            if work.2 != tailscaleNote { tailscaleNote = work.2 }
+            if work.3 { weEnabledServe = true }
+            if work.4 { serveAttempt = (port, Date()) }
+            if !wantServe { tailscaleHTTPS = false; tailscaleNote = nil; if weEnabledServe { weEnabledServe = false } }
         }
     }
+
     /// What to hand to other apps and computers: this Mac's network address when the server is shared on the local network.
     var shareEndpoint: String {
+        if draft.host == Tailscale.hostSetting, tailscaleHTTPS, let ts = tailscale, !ts.dnsName.isEmpty { return "https://\(ts.dnsName)/v1" }
         if draft.host == Tailscale.hostSetting, let ts = tailscale { return "http://\(ts.host):\(draft.port)/v1" }
         guard draft.host == "0.0.0.0", let lan = LANAddress.current() else { return endpoint }
         return "http://\(lan):\(draft.port)/v1"
@@ -780,7 +818,7 @@ final class AppModel {
         swapBytes = HardwareProbe.swapUsedBytes()
         recordSystemSample()
         tickCount += 1
-        if draft.host == Tailscale.hostSetting, tailscale == nil || tickCount % 10 == 0 { refreshTailscale() }
+        if draft.host == Tailscale.hostSetting ? (tailscale == nil || tickCount % 10 == 0) : weEnabledServe { refreshTailscale() }
         Task {
             serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0
