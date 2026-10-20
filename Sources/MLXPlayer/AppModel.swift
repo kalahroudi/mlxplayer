@@ -77,6 +77,7 @@ final class AppModel {
     static let historyLength = 90
     var memoryEvents: [(time: Date, text: String)] = []
     private var pressureCapActive = false
+    private var systemPressure: MemoryPressure = .normal
 
     // MARK: Library & downloads
     var installed: [InstalledModel] = []
@@ -759,6 +760,8 @@ final class AppModel {
             await supervisor.checkAlive()
             await reconcileServerState()
         }
+        let system = MemoryMonitor.currentLevel()
+        if system != systemPressure { pressureChanged(system) }
         pressureHistory.append(Double(memoryPressure.rawValue))
         if pressureHistory.count > 360 { pressureHistory.removeFirst() }
         idleCheck()
@@ -806,6 +809,7 @@ final class AppModel {
     }
 
     private func pressureChanged(_ system: MemoryPressure) {
+        systemPressure = system
         swapBytes = HardwareProbe.swapUsedBytes()
         let level = MemoryPolicy.level(system: system, swapBytes: swapBytes)
         memoryPressure = level

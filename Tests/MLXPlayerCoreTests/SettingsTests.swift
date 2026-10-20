@@ -105,6 +105,12 @@ final class SettingsTests: XCTestCase {
 }
 
 final class MemoryPolicyTests: XCTestCase {
+    func testKernelLevelMapping() {
+        XCTAssertEqual(MemoryMonitor.pressure(fromKernelLevel: 1), .normal)
+        XCTAssertEqual(MemoryMonitor.pressure(fromKernelLevel: 2), .warning)
+        XCTAssertEqual(MemoryMonitor.pressure(fromKernelLevel: 4), .critical)
+    }
+
     func testEscalation() {
         let s = AppSettings()
         XCTAssertEqual(MemoryPolicy.actions(level: .normal, swapBytes: 0, settings: s), [])

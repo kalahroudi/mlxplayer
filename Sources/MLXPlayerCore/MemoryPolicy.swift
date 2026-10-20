@@ -65,5 +65,19 @@ public final class MemoryMonitor: @unchecked Sendable {
     }
 
     deinit { source.cancel() }
+
+    /// Maps kern.memorystatus_vm_pressure_level (1 normal, 2 warning, 4 critical).
+    public static func pressure(fromKernelLevel level: Int) -> MemoryPressure {
+        level >= 4 ? .critical : (level == 2 ? .warning : .normal)
+    }
+
+    /// Reads the level directly. The dispatch source above can stay silent (it did under `memory_pressure -l warn`),
+    /// so the app also polls this on its timer and treats a change like an event.
+    public static func currentLevel() -> MemoryPressure {
+        var level: Int32 = 1
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return .normal }
+        return pressure(fromKernelLevel: Int(level))
+    }
 }
 #endif
