@@ -518,6 +518,10 @@ final class AppModel {
     func delete(model id: String) {
         try? ModelLibrary.delete(hub: paths.hfHub, id: id)
         refreshInstalled()
+        if app.lastModelID == id {
+            app.lastModelID = installed.first?.id
+            draft.modelID = app.lastModelID ?? ""
+        }
     }
 
     func reveal(model id: String) {
