@@ -191,7 +191,7 @@ public actor ServerSupervisor {
             process = nil
             current.process = nil
             try? FileManager.default.removeItem(at: paths.serverPidFile)
-            set(.failed("Server stopped unexpectedly."))
+            set(.failed("Server stopped unexpectedly. \(p.exitSummary)"))
         }
     }
 

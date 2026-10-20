@@ -165,10 +165,29 @@ enum MLXPlayerMain {
             writeIconSet(to: URL(fileURLWithPath: args[i + 1]))
             exit(0)
         }
+        // A second copy would reap the first copy's server as a stale leftover and fight it for the ports,
+        // so it must leave before AppController (and the model it owns) is created.
+        if let other = otherRunningInstance() {
+            other.activate()
+            exit(0)
+        }
         let app = NSApplication.shared
         app.delegate = AppController.shared
         app.mainMenu = makeMainMenu()
         app.run()
+    }
+
+    /// Another copy of this app that is alive. Waits a moment, since an update relaunch starts us as the old copy exits.
+    private static func otherRunningInstance() -> NSRunningApplication? {
+        guard let id = Bundle.main.bundleIdentifier else { return nil }
+        for attempt in 0..<10 {
+            let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+                .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && !$0.isTerminated }
+            guard let first = others.first else { return nil }
+            if attempt == 9 { return first }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return nil
     }
 
     /// Edit and Window menus so copy/paste and Cmd-W keep working in text fields and the main window.

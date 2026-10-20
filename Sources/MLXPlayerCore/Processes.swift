@@ -122,6 +122,16 @@ public final class ManagedProcess: @unchecked Sendable {
         for c in ProcessTree.descendants(of: process.processIdentifier) { kill(c, SIGKILL) }
     }
 
+    /// How the process ended: signal 9 means macOS killed it (usually for memory), other signals are crashes.
+    public var exitSummary: String {
+        guard !process.isRunning else { return "" }
+        if process.terminationReason == .uncaughtSignal {
+            return process.terminationStatus == 9 ? "It was killed by macOS (signal 9), most likely for memory."
+                                                  : "It crashed (signal \(process.terminationStatus))."
+        }
+        return "It exited with code \(process.terminationStatus)."
+    }
+
     /// Last lines of output, for diagnosing a crash.
     public var recentOutput: [String] { lock.withLock { recent } }
 
