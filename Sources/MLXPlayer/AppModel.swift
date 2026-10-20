@@ -21,6 +21,8 @@ final class AppModel {
     private var loadTask: Task<Bool, Never>?
     private var timer: Timer?
     private var lastSpeed: (value: Double, at: Date)?
+    /// Recent failed starts, to stop a request from restarting a broken model in a loop.
+    private var failures: [Date] = []
     /// Readable from the proxy's threads without hopping to the main actor.
     private let runningFlag = AtomicFlag()
 
@@ -111,6 +113,14 @@ final class AppModel {
 
     func launch() {
         guard timer == nil else { return }
+        if let pid = PIDRecord.reapOrphan(at: paths.serverPidFile) {
+            logs.append("Stopped a model server left over from the last run (pid \(pid)).")
+            note("Cleaned up a leftover model server")
+        }
+        let sup = supervisor!
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { _ in
+            sup.killNow()
+        }
         refreshInstalled()
         if !isInstalled { showSetup = true }
         if let id = app.lastModelID { select(model: id) }
@@ -287,6 +297,7 @@ final class AppModel {
     }
 
     /// Starts `model` (or the saved one) on the internal port behind the proxy.
+    /// A newer start or a stop cancels this one; that is not an error.
     func startServer(model: String? = nil) async {
         let id = model ?? draft.modelID
         guard !id.isEmpty else { lastError = "Pick a model first."; return }
@@ -306,8 +317,20 @@ final class AppModel {
             settings.contextLength = assessment.safeMaxContext
         }
 
+        // Free the old model first, so its memory counts as available for the new one.
+        if serverState.isActive || serverState == .stopping {
+            let freed = await supervisor.footprintBytes
+            await supervisor.stop()
+            if freed > 0 { logs.append("Unloaded previous model, freed \(formatBytes(freed)).") }
+        }
+        hardware.availableBytes = HardwareProbe.availableMemory()
+        if app.autoReduceContext { settings = fitToAvailableMemory(settings, meta: meta) }
+
         if proxy == nil || proxy?.port != settings.port { draft.port = settings.port; startProxy() }
-        let backendPort = settings.port + 1
+        guard let backendPort = TCP.firstFreePort(from: settings.port + 1) else {
+            lastError = "No free port near \(settings.port). Pick another in Server → Network."
+            return
+        }
         proxy?.backendPort = backendPort
         proxy?.servedModel = id
         if supportedFlags == nil { supportedFlags = await supervisor.probeFlags(custom: app.customServerPath) }
@@ -315,20 +338,76 @@ final class AppModel {
         activeModelID = id
         app.lastModelID = id
         store.save(settings)
-        if draft.modelID == id { draft = settings }
-        do {
-            try await supervisor.start(settings: settings, port: backendPort, supportedFlags: supportedFlags,
-                                       customExecutable: app.customServerPath)
-            applied = settings
-            proxy?.contextLimit = effectiveContextLimit
-        } catch {
-            lastError = error.localizedDescription
+
+        var attempt = settings
+        var retried = false
+        while true {
+            do {
+                try await supervisor.start(settings: attempt, port: backendPort, supportedFlags: supportedFlags,
+                                           customExecutable: app.customServerPath)
+                applied = attempt
+                if draft.modelID == id, attempt != draft, !retried { draft = attempt }
+                proxy?.contextLimit = effectiveContextLimit
+                failures.removeAll()
+                return
+            } catch ServerError.cancelled {
+                return
+            } catch ServerError.outOfMemory where app.autoReduceContext && !retried && attempt.contextLength > 4096 {
+                // One automatic retry with half the context and cache before giving up.
+                retried = true
+                attempt.contextLength = max(attempt.contextLength / 2, 4096)
+                attempt.promptCacheGB = max(attempt.promptCacheGB / 2, 1)
+                logs.append("Out of memory. Retrying with context \(formatContext(attempt.contextLength)) and a smaller cache.")
+                note("Out of memory: retried with context \(formatContext(attempt.contextLength))")
+            } catch {
+                failures.append(Date())
+                lastError = error.localizedDescription
+                return
+            }
         }
+    }
+
+    /// Lowers the context until weights + KV cache fit in the memory that is free right now.
+    private func fitToAvailableMemory(_ settings: ServerSettings, meta: ModelMetadata) -> ServerSettings {
+        var s = settings
+        let available = Double(hardware.availableBytes)
+        guard available > 0 else { return s }
+        let weights = Double(advisor.weightsBytes(meta))
+        let perToken = meta.kvBytesPerToken(elementBytes: Double(s.kvBits ?? 16) / 8)
+        func need(_ ctx: Int) -> Double { weights + perToken * Double(ctx) + (s.promptCacheEnabled ? 0.25 * 1_073_741_824 : 0) }
+        guard need(s.contextLength) > available * 0.92 else { return s }
+        let original = s.contextLength
+        for step in Advisor.contextSteps.reversed() where step < original && need(step) <= available * 0.92 {
+            s.contextLength = step
+            logs.append("Only \(formatBytes(hardware.availableBytes)) free right now. Context \(formatContext(original)) → \(formatContext(step)) for this run.")
+            note("Context lowered to \(formatContext(step)): low free memory")
+            return s
+        }
+        logs.append("Low free memory (\(formatBytes(hardware.availableBytes))). The Mac may swap while this model loads.")
+        return s
     }
 
     func stopServer() async {
         await supervisor.stop()
         applied = nil
+    }
+
+    /// Unloads the model. With `waitForIdle`, lets running requests finish first (up to that many seconds).
+    func unload(reason: String, waitForIdle: TimeInterval = 0, onlyIfIdle: Bool = false) async {
+        var waited: TimeInterval = 0
+        while (proxy?.activeConnections ?? 0) > 0 {
+            if onlyIfIdle { return }
+            if waited >= waitForIdle { break }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            waited += 1
+        }
+        guard isRunning else { return }
+        let freed = await supervisor.footprintBytes
+        // A request may have arrived while we measured; idle unloads must never cut one off.
+        if onlyIfIdle, (proxy?.activeConnections ?? 0) > 0 { return }
+        await stopServer()
+        note("\(reason)" + (freed > 0 ? ", freed \(formatBytes(freed))" : ""))
+        logs.append("Unloaded: \(reason)")
     }
 
     func restartServer() async {
@@ -342,6 +421,11 @@ final class AppModel {
         }
         if let task = loadTask { return await task.value }
         guard app.onDemandLoading else { return isRunning }
+        failures.removeAll { Date().timeIntervalSince($0) > 300 }
+        if failures.count >= 3 {
+            lastError = "The model failed to start 3 times. Fix the problem, then load it again."
+            return false
+        }
         var target = activeModelID ?? app.lastModelID
         if app.switchModelsByRequest, let r = requested, isInstalledModel(r) { target = r }
         guard let target else { return false }
@@ -500,7 +584,7 @@ final class AppModel {
         hardware.availableBytes = HardwareProbe.availableMemory()
         swapBytes = HardwareProbe.swapUsedBytes()
         Task {
-            if let pid = await supervisor.processID { serverMemoryBytes = Self.residentBytes(pid: pid) } else { serverMemoryBytes = 0 }
+            serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0
             await supervisor.checkAlive()
         }
@@ -509,19 +593,11 @@ final class AppModel {
         idleCheck()
     }
 
-    static func residentBytes(pid: Int32) -> UInt64 {
-        var info = proc_taskinfo()
-        let size = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &info, Int32(MemoryLayout<proc_taskinfo>.size))
-        return size > 0 ? info.pti_resident_size : 0
-    }
-
     private func idleCheck() {
         guard isRunning, app.onDemandLoading, app.idleUnloadMinutes > 0, let proxy, proxy.activeConnections == 0 else { return }
         let idle = Date().timeIntervalSince(proxy.lastActivity)
         if idle > Double(app.idleUnloadMinutes) * 60 {
-            logs.append("Unloading after \(app.idleUnloadMinutes) min idle.")
-            note("Unloaded after \(app.idleUnloadMinutes) min idle, freed \(formatBytes(serverMemoryBytes))")
-            Task { await stopServer() }
+            Task { await unload(reason: "Idle for \(app.idleUnloadMinutes) min", onlyIfIdle: true) }
         }
     }
 
@@ -553,8 +629,7 @@ final class AppModel {
             case .trimPromptCache(let percent):
                 trimCacheWhenIdle(percent: percent)
             case .unloadModel:
-                note("Unloaded the model: memory critical")
-                Task { await stopServer() }
+                Task { await unload(reason: "Memory critical", waitForIdle: 60) }
             }
         }
         proxy?.contextLimit = effectiveContextLimit
@@ -584,8 +659,7 @@ final class AppModel {
         ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.app.unloadOnSleep, self.isRunning else { return }
-                self.note("Unloaded: Mac went to sleep")
-                await self.stopServer()
+                await self.unload(reason: "Mac went to sleep")
             }
         }
         DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
@@ -593,8 +667,7 @@ final class AppModel {
                 guard let self, self.app.unloadOnScreenLock, self.isRunning else { return }
                 try? await Task.sleep(nanoseconds: 5 * 60 * 1_000_000_000)
                 if self.isRunning, (self.proxy?.activeConnections ?? 0) == 0 {
-                    self.note("Unloaded: screen locked")
-                    await self.stopServer()
+                    await self.unload(reason: "Screen locked")
                 }
             }
         }
