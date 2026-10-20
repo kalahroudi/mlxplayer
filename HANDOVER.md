@@ -117,3 +117,5 @@ swift run mlxplayer-mcp     # stdio MCP server
 - All flags we emit exist in `mlx_lm.server --help` (pinned in `SettingsTests`). Not in 0.32.2: `--max-kv-size`.
 - Settings files with missing keys used to reset everything; loading is now lenient (`SettingsStore.decodeLeniently`).
 - Bundle: `scripts/bundle.sh` then `open "dist/MLX Player.app"`.
+
+(update test marker)
