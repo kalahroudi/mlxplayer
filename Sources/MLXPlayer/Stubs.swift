@@ -1,6 +1,5 @@
 import SwiftUI
 struct ServerView: View { var body: some View { Text("server") } }
-struct LibraryView: View { var body: some View { Text("lib") } }
 struct AdvisorView: View { var body: some View { Text("adv") } }
 struct MemoryView: View { var body: some View { Text("mem") } }
 struct UsageView: View { var body: some View { Text("use") } }
