@@ -122,10 +122,10 @@ struct PopoverView: View {
     private var endpointCard: some View {
         Card(padding: 10) {
             HStack(spacing: 8) {
-                Text(model.endpoint).font(.system(size: 11.5, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+                Text(model.shareEndpoint).font(.system(size: 11.5, design: .monospaced)).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 4)
                 Button(copied ? "Copied" : "Copy URL") {
-                    model.copy(model.endpoint)
+                    model.copy(model.shareEndpoint)
                     copied = true
                     Task { try? await Task.sleep(nanoseconds: 1_200_000_000); copied = false }
                 }

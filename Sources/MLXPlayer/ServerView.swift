@@ -182,7 +182,7 @@ struct ServerView: View {
                 TabStrip(options: [(Rail.endpoint, "Endpoint"), (.command, "Command"), (.log, "Log")], selection: $rail)
                 switch rail {
                 case .endpoint:
-                    snippet("Base URL", model.endpoint)
+                    snippet("Base URL", model.shareEndpoint)
                     snippet("cURL", model.curlSnippet)
                     snippet("Environment", model.envSnippet)
                 case .command:

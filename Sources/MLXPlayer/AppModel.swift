@@ -212,7 +212,13 @@ final class AppModel {
 
     var isRunning: Bool { serverState == .running }
     var publicPort: Int { draft.port }
+    /// What this app itself calls: always reachable from this Mac.
     var endpoint: String { "http://\(draft.host == "0.0.0.0" ? "127.0.0.1" : draft.host):\(draft.port)/v1" }
+    /// What to hand to other apps and computers: this Mac's network address when the server is shared on the local network.
+    var shareEndpoint: String {
+        guard draft.host == "0.0.0.0", let lan = LANAddress.current() else { return endpoint }
+        return "http://\(lan):\(draft.port)/v1"
+    }
     var advisor: Advisor {
         var a = Advisor(hardware: hardware, reserveBytes: UInt64(app.reserveGB * 1_073_741_824))
         let here = app.benchmarks.values.filter { $0.chip == hardware.chip }
@@ -1005,7 +1011,7 @@ final class AppModel {
     var curlSnippet: String {
         let id = draft.modelID.isEmpty ? "MODEL" : draft.modelID
         return """
-        curl \(endpoint)/chat/completions \\
+        curl \(shareEndpoint)/chat/completions \\
           -H "Content-Type: application/json" \\
           -d '{"model": "\(id)", "messages": [{"role": "user", "content": "Hello"}]}'
         """
@@ -1014,14 +1020,14 @@ final class AppModel {
     var pythonSnippet: String {
         """
         from openai import OpenAI
-        client = OpenAI(base_url="\(endpoint)", api_key="local")
+        client = OpenAI(base_url="\(shareEndpoint)", api_key="local")
         r = client.chat.completions.create(model="\(draft.modelID)", messages=[{"role": "user", "content": "Hello"}])
         print(r.choices[0].message.content)
         """
     }
 
     var envSnippet: String {
-        "export OPENAI_BASE_URL=\(endpoint)\nexport OPENAI_API_KEY=local"
+        "export OPENAI_BASE_URL=\(shareEndpoint)\nexport OPENAI_API_KEY=local"
     }
 
     func claudeMCPCommand() -> String {

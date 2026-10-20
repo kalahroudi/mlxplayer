@@ -125,7 +125,7 @@ struct Sidebar: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 ModelSwitcher()
-                Text("\(model.draft.host == "0.0.0.0" ? "127.0.0.1" : model.draft.host):\(model.draft.port)")
+                Text(model.shareEndpoint.replacingOccurrences(of: "http://", with: "").replacingOccurrences(of: "/v1", with: ""))
                     .font(.system(size: 10.5, design: .monospaced)).foregroundStyle(.secondary)
             }
         }
