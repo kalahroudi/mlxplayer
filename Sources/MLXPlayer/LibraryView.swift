@@ -18,7 +18,7 @@ struct LibraryView: View {
 
     var body: some View {
         ScreenFrame {
-            PageHeader(title: "Library", subtitle: "\(model.installed.count) models · \(formatBytes(total))") {
+            PageHeader(title: "Library", subtitle: "\(model.installed.count) models · \(formatBytes(total))" + (downloadIDs.isEmpty ? "" : " · \(downloadIDs.count) download\(downloadIDs.count == 1 ? "" : "s")")) {
                 HStack(spacing: 8) {
                     TextBox(placeholder: "Search", text: $query, width: 200, mono: false)
                     Button { model.refreshInstalled() } label: { IconLabel(title: "Refresh", symbol: "arrow.clockwise") }
@@ -121,7 +121,15 @@ struct LibraryView: View {
 
     private var downloadIDs: [String] {
         let live = model.downloads.filter { !$0.value.finished }.keys
-        return Array(Set(live).union(model.partials.map(\.id))).sorted()
+        return Array(Set(live).union(resumable.map(\.id))).sorted()
+    }
+
+    /// Left-over partials that are not already transferring (a running download supersedes its partial entry).
+    private var resumable: [PartialModel] {
+        model.partials.filter { p in
+            guard let d = model.downloads[p.id] else { return true }
+            return d.failed != nil
+        }
     }
 
     /// Active, paused and left-over downloads in one place, each with resume / pause / discard.
@@ -136,7 +144,7 @@ struct LibraryView: View {
                         if model.downloads.values.contains(where: { !$0.finished && $0.failed == nil }) {
                             Button("Pause all") { model.pauseAllDownloads() }.buttonStyle(.pill(height: 24))
                         }
-                        if !model.partials.isEmpty {
+                        if !resumable.isEmpty {
                             Button("Resume all") { model.resumeAllPartials() }.buttonStyle(.pillPrimary)
                         }
                     }
@@ -148,7 +156,7 @@ struct LibraryView: View {
 
     private func downloadRow(_ id: String) -> some View {
         let d = model.downloads[id]
-        let partial = model.partials.first { $0.id == id }
+        let partial = resumable.first { $0.id == id }
         let bytes = d?.downloadedBytes ?? partial?.bytes ?? 0
         let running = d != nil && d?.failed == nil && d?.finished == false
         let status: String = {

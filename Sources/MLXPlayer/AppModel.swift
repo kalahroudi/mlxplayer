@@ -623,7 +623,9 @@ final class AppModel {
         download(installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id))
     }
 
-    func resumeAllPartials() { for p in partials { resumePartial(p.id) } }
+    func resumeAllPartials() {
+        for p in partials where downloadsByID[p.id] == nil { resumePartial(p.id) }
+    }
 
     func pauseAllDownloads() { for id in Array(downloadsByID.keys) { pauseDownload(id) } }
 
