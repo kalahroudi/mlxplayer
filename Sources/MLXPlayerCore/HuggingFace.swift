@@ -112,7 +112,17 @@ public final class HuggingFaceClient: @unchecked Sendable {
         return r
     }
 
-    public func search(_ q: SearchQuery) async throws -> [ModelMetadata] {
+    /// Fields requested from the Hub. The API rejects names outside its allowed list with HTTP 400
+    /// (it dropped `usedStorage`), so this list is pinned by a test.
+    static let expandFields = ["downloads", "likes", "lastModified", "tags", "safetensors", "pipeline_tag"]
+
+    /// One page of results plus the cursor URL for the next page, if there is one.
+    public struct SearchPage: Sendable {
+        public var models: [ModelMetadata]
+        public var next: URL?
+    }
+
+    static func searchURL(_ q: SearchQuery, base: URL) -> URL {
         var comps = URLComponents(url: base.appendingPathComponent("api/models"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "filter", value: "mlx"),
@@ -131,15 +141,35 @@ public final class HuggingFaceClient: @unchecked Sendable {
             text = (text + " abliterated").trimmingCharacters(in: .whitespaces)
         }
         if !text.isEmpty { items.append(.init(name: "search", value: text)) }
-        for field in ["downloads", "likes", "lastModified", "tags", "usedStorage", "pipeline_tag"] {
-            items.append(.init(name: "expand[]", value: field))
-        }
+        for field in expandFields { items.append(.init(name: "expand[]", value: field)) }
         comps.queryItems = items
-        let (data, resp) = try await session.data(for: request(comps.url!))
-        if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
-            throw HFError.http(http.statusCode)
+        return comps.url!
+    }
+
+    /// Fetches the first page, or the page behind `cursor` (the `next` of a previous page).
+    public func searchPage(_ q: SearchQuery, cursor: URL? = nil) async throws -> SearchPage {
+        let url = cursor ?? Self.searchURL(q, base: base)
+        let (data, resp) = try await session.data(for: request(url))
+        guard let http = resp as? HTTPURLResponse else { return SearchPage(models: Self.parseSearch(data), next: nil) }
+        guard http.statusCode == 200 else {
+            let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            throw HFError.http(http.statusCode, detail)
         }
-        return Self.parseSearch(data)
+        return SearchPage(models: Self.parseSearch(data), next: Self.nextLink(http.value(forHTTPHeaderField: "Link")))
+    }
+
+    public func search(_ q: SearchQuery) async throws -> [ModelMetadata] {
+        try await searchPage(q).models
+    }
+
+    /// Reads `<url>; rel="next"` from a Link header.
+    static func nextLink(_ header: String?) -> URL? {
+        guard let header else { return nil }
+        for part in header.split(separator: ",") where part.contains("rel=\"next\"") {
+            guard let l = part.firstIndex(of: "<"), let r = part.firstIndex(of: ">"), l < r else { continue }
+            return URL(string: String(part[part.index(after: l)..<r]))
+        }
+        return nil
     }
 
     static func parseSearch(_ data: Data) -> [ModelMetadata] {
@@ -197,10 +227,12 @@ public final class HuggingFaceClient: @unchecked Sendable {
 }
 
 public enum HFError: Error, LocalizedError {
-    case http(Int)
+    case http(Int, String? = nil)
     public var errorDescription: String? {
         switch self {
-        case .http(let c): return "Hugging Face returned HTTP \(c)."
+        case .http(let c, let detail):
+            let first = detail?.split(separator: "\n").first.map(String.init)
+            return "Hugging Face returned HTTP \(c)." + (first.map { " \($0)" } ?? "")
         }
     }
 }

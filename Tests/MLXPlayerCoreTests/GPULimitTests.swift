@@ -26,3 +26,28 @@ final class GPULimitTests: XCTestCase {
                        "do shell script \"/usr/sbin/sysctl iogpu.wired_limit_mb=8192\" with administrator privileges")
     }
 }
+
+final class HFSearchTests: XCTestCase {
+    func testExpandFieldsAreAllowedByTheHub() {
+        // From the Hub's own 400 response, 2026-10-20. `usedStorage` is no longer accepted.
+        let allowed: Set<String> = ["author", "baseModels", "cardData", "config", "createdAt", "disabled", "downloads",
+            "downloadsAllTime", "evalResults", "gated", "inference", "inferenceProviderMapping", "lastModified",
+            "library_name", "likes", "mask_token", "model-index", "pipeline_tag", "private", "safetensors", "sha",
+            "siblings", "spaces", "tags", "transformersInfo", "trendingScore", "widgetData", "gguf", "resourceGroup", "xetEnabled"]
+        for f in HuggingFaceClient.expandFields { XCTAssertTrue(allowed.contains(f), f) }
+    }
+
+    func testSearchURLCarriesFilterAndFields() {
+        let url = HuggingFaceClient.searchURL(SearchQuery(text: "qwen", limit: 30), base: URL(string: "https://huggingface.co")!)
+        let s = url.absoluteString
+        XCTAssertTrue(s.contains("filter=mlx")); XCTAssertTrue(s.contains("limit=30")); XCTAssertTrue(s.contains("search=qwen"))
+        XCTAssertFalse(s.contains("usedStorage"))
+    }
+
+    func testNextLink() {
+        let h = "<https://huggingface.co/api/models?cursor=abc>; rel=\"next\", <https://huggingface.co/api/models>; rel=\"prev\""
+        XCTAssertEqual(HuggingFaceClient.nextLink(h)?.absoluteString, "https://huggingface.co/api/models?cursor=abc")
+        XCTAssertNil(HuggingFaceClient.nextLink(nil))
+        XCTAssertNil(HuggingFaceClient.nextLink("<https://x>; rel=\"prev\""))
+    }
+}
