@@ -28,6 +28,8 @@ public final class LazyProxy: @unchecked Sendable {
     public var ensureBackend: (@Sendable (_ requestedModel: String?) async -> Bool)?
     public var isBackendRunning: (@Sendable () -> Bool)?
     public var onRecord: (@Sendable (UsageRecord) -> Void)?
+    /// Live generation speed while a streamed reply is in flight: tokens so far and seconds since the first token.
+    public var onProgress: (@Sendable (_ tokens: Int, _ seconds: Double) -> Void)?
     public var onActiveChanged: (@Sendable (_ active: Int) -> Void)?
 
     public init(host: String = "127.0.0.1", port: Int) {
@@ -141,6 +143,8 @@ public final class LazyProxy: @unchecked Sendable {
         var status = 200
         var sawHead = false
         var sseChunks = 0
+        var firstDataAt: Date?
+        var lastProgress = Date.distantPast
         while let chunk = TCP.read(backend) {
             if firstByte == nil { firstByte = Date() }
             if !sawHead {
@@ -148,7 +152,18 @@ public final class LazyProxy: @unchecked Sendable {
                 if let line = String(data: chunk.prefix(32), encoding: .utf8)?.split(separator: " "), line.count > 1,
                    let code = Int(line[1]) { status = code }
             }
-            if streaming { sseChunks += Self.countOccurrences(of: "data:", in: chunk) }
+            if streaming {
+                let n = Self.countOccurrences(of: "data:", in: chunk)
+                if n > 0 {
+                    sseChunks += n
+                    let now = Date()
+                    if firstDataAt == nil { firstDataAt = now }
+                    if let t0 = firstDataAt, now.timeIntervalSince(t0) > 0.4, now.timeIntervalSince(lastProgress) > 0.5 {
+                        lastProgress = now
+                        onProgress?(max(sseChunks - 1, 0), now.timeIntervalSince(t0))
+                    }
+                }
+            }
             tail.append(chunk)
             if tail.count > 8192 { tail = Data(tail.suffix(8192)) }
             if !TCP.writeAll(client, chunk) { break }

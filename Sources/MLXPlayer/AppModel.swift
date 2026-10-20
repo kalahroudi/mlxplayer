@@ -340,6 +340,9 @@ final class AppModel {
         p.isBackendRunning = { [flag = runningFlag] in flag.value }
         p.ensureBackend = { [weak self] requested in await self?.ensureLoaded(for: requested) ?? false }
         p.onRecord = { [weak self] record in Task { @MainActor in self?.record(record) } }
+        p.onProgress = { [weak self] tokens, secs in
+            Task { @MainActor in self?.lastSpeed = (Double(tokens) / secs, Date()) }
+        }
         p.onActiveChanged = { [weak self] n in Task { @MainActor in self?.activeRequests = n } }
         do {
             try p.start()
@@ -715,7 +718,8 @@ final class AppModel {
     }
 
     private func tick() {
-        if let s = lastSpeed, Date().timeIntervalSince(s.at) < 8 { tokensPerSecond = s.value } else { tokensPerSecond = 0 }
+        // Keep the last measured speed for a while after a reply ends, so the tile does not flash back to a dash.
+        if let s = lastSpeed, Date().timeIntervalSince(s.at) < 300 { tokensPerSecond = s.value } else { tokensPerSecond = 0 }
         speedHistory.append(tokensPerSecond)
         if speedHistory.count > 40 { speedHistory.removeFirst() }
         hardware.availableBytes = HardwareProbe.availableMemory()
