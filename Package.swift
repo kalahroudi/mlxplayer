@@ -6,7 +6,7 @@ var targets: [Target] = [
     .target(name: "MLXPlayerCore"),
     // Stdio MCP server so agents (Claude Code, Cursor, ...) can manage models.
     .executableTarget(name: "mlxplayer-mcp", dependencies: ["MLXPlayerCore"]),
-    .testTarget(name: "MLXPlayerCoreTests", dependencies: ["MLXPlayerCore"]),
+    .testTarget(name: "MLXPlayerCoreTests", dependencies: ["MLXPlayerCore"], exclude: ["Fixtures/fake_backend.py"]),
 ]
 var products: [Product] = [
     .library(name: "MLXPlayerCore", targets: ["MLXPlayerCore"]),

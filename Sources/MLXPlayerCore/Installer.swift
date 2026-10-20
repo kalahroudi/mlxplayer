@@ -79,7 +79,7 @@ public final class Installer: @unchecked Sendable {
 
     /// Runs every step, reporting progress. Already-complete steps are skipped quickly.
     public func run(onEvent: @escaping @Sendable (InstallEvent) -> Void) async throws {
-        func emit(_ step: InstallStep, _ state: InstallState, _ log: String? = nil) {
+        @Sendable func emit(_ step: InstallStep, _ state: InstallState, _ log: String? = nil) {
             onEvent(InstallEvent(step: step, state: state, log: log))
         }
         func fail(_ step: InstallStep, _ error: Error) -> Error {
