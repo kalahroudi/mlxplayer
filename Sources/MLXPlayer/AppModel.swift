@@ -78,6 +78,8 @@ final class AppModel {
 
     // MARK: Library & downloads
     var installed: [InstalledModel] = []
+    /// Half-finished downloads found on disk (not currently transferring).
+    var partials: [PartialModel] = []
     var downloads: [String: DownloadProgress] = [:]
 
     // MARK: Discover
@@ -223,7 +225,7 @@ final class AppModel {
     }
 
     var activeMeta: ModelMetadata? {
-        guard let id = activeModelID ?? app.lastModelID else { return nil }
+        guard let id = shownModelID else { return nil }
         return installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id)
     }
 
@@ -504,6 +506,12 @@ final class AppModel {
         return ok
     }
 
+    /// The model the UI should present: the loaded one, else the last used one while it is still installed.
+    var shownModelID: String? {
+        if isRunning || serverState.isStarting { return activeModelID ?? app.lastModelID }
+        return [activeModelID, app.lastModelID].compactMap { $0 }.first { isInstalledModel($0) }
+    }
+
     private func isInstalledModel(_ id: String?) -> Bool {
         guard let id else { return false }
         return installed.contains { $0.id == id }
@@ -513,6 +521,8 @@ final class AppModel {
 
     func refreshInstalled() {
         installed = ModelLibrary.scan(hub: paths.hfHub)
+        partials = ModelLibrary.scanPartials(hub: paths.hfHub).filter { downloadsByID[$0.id] == nil }
+        if !isRunning, !serverState.isStarting, let a = activeModelID, !isInstalledModel(a) { activeModelID = nil }
     }
 
     func delete(model id: String) {
@@ -558,7 +568,7 @@ final class AppModel {
         downloads[p.modelID] = q
         if p.finished || p.failed != nil {
             downloadsByID[p.modelID] = nil
-            if p.finished { refreshInstalled() }
+            refreshInstalled()
             if p.finished {
                 notify(.success, "Download complete", detail: ModelMetadata.fromName(p.modelID).displayName, action: "Open library", screen: .library)
             } else if let why = p.failed, why != "Paused" {
@@ -575,6 +585,7 @@ final class AppModel {
         downloadsByID[id] = nil
         downloads[id]?.bytesPerSecond = 0
         downloads[id]?.failed = "Paused"
+        refreshInstalled()
     }
 
     func resumeDownload(_ meta: ModelMetadata) {
@@ -583,10 +594,22 @@ final class AppModel {
     }
 
     func cancelDownload(_ id: String) {
-        downloadsByID[id]?.cancel()
+        if let d = downloadsByID[id] { d.cancel() } else {
+            try? ModelLibrary.delete(hub: paths.hfHub, id: id)
+        }
         downloadsByID[id] = nil
         downloads[id] = nil
+        refreshInstalled()
     }
+
+    /// Continues a download left over from an earlier session; already fetched files are kept.
+    func resumePartial(_ id: String) {
+        download(installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id))
+    }
+
+    func resumeAllPartials() { for p in partials { resumePartial(p.id) } }
+
+    func pauseAllDownloads() { for id in Array(downloadsByID.keys) { pauseDownload(id) } }
 
     // MARK: Search
 

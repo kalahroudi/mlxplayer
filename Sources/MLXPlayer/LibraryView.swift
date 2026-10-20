@@ -32,6 +32,7 @@ struct LibraryView: View {
             }
         } content: {
             diskBar
+            downloadsCard
             if model.installed.isEmpty {
                 VStack(spacing: 10) {
                     Text("No models yet").foregroundStyle(.secondary)
@@ -115,6 +116,64 @@ struct LibraryView: View {
                 }
                 ProgressBar(fraction: Double(total) / Double(max(total + freeBytes, 1)), color: .seriesTeal)
             }
+        }
+    }
+
+    private var downloadIDs: [String] {
+        let live = model.downloads.filter { !$0.value.finished }.keys
+        return Array(Set(live).union(model.partials.map(\.id))).sorted()
+    }
+
+    /// Active, paused and left-over downloads in one place, each with resume / pause / discard.
+    @ViewBuilder private var downloadsCard: some View {
+        let ids = downloadIDs
+        if !ids.isEmpty {
+            Card(padding: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label2("Downloads")
+                        Spacer()
+                        if model.downloads.values.contains(where: { !$0.finished && $0.failed == nil }) {
+                            Button("Pause all") { model.pauseAllDownloads() }.buttonStyle(.pill(height: 24))
+                        }
+                        if !model.partials.isEmpty {
+                            Button("Resume all") { model.resumeAllPartials() }.buttonStyle(.pillPrimary)
+                        }
+                    }
+                    ForEach(ids, id: \.self) { id in downloadRow(id) }
+                }
+            }
+        }
+    }
+
+    private func downloadRow(_ id: String) -> some View {
+        let d = model.downloads[id]
+        let partial = model.partials.first { $0.id == id }
+        let bytes = d?.downloadedBytes ?? partial?.bytes ?? 0
+        let running = d != nil && d?.failed == nil && d?.finished == false
+        let status: String = {
+            if let f = d?.failed { return f == "Paused" ? "Paused" : f }
+            if let d, !d.finished {
+                let pct = d.totalBytes != nil ? "\(Int(d.fraction * 100))% · " : ""
+                return "\(pct)\(formatBytes(UInt64(max(d.bytesPerSecond, 0))))/s"
+            }
+            return "Stopped"
+        }()
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ModelMetadata.fromName(id).displayName).font(.system(size: 12.5, weight: .semibold)).lineLimit(1)
+                Text("\(formatBytes(bytes))\(d?.totalBytes.map { " of \(formatBytes($0))" } ?? "") · \(status)")
+                    .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+            Spacer()
+            if running {
+                ProgressBar(fraction: d?.fraction ?? 0).frame(width: 110)
+                Button { model.pauseDownload(id) } label: { Image(systemName: "pause.fill") }.buttonStyle(.pill(height: 26))
+            } else {
+                Button("Resume") { model.resumePartial(id) }.buttonStyle(.pill(height: 26))
+            }
+            Button { model.cancelDownload(id) } label: { Image(systemName: "xmark") }
+                .buttonStyle(.pill(height: 26)).help("Discard download and delete partial files")
         }
     }
 

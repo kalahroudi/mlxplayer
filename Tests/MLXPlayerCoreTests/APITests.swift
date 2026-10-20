@@ -95,5 +95,10 @@ final class APITests: XCTestCase {
         XCTAssertEqual(found[0].sizeBytes, 5000)
         try Data(count: 1).write(to: blobs.appendingPathComponent("zzz.incomplete"))
         XCTAssertTrue(ModelLibrary.scan(hub: hub).isEmpty)
+        let partial = ModelLibrary.scanPartials(hub: hub)
+        XCTAssertEqual(partial.map(\.id), ["mlx-community/Qwen3-8B-4bit"])
+        XCTAssertEqual(partial[0].bytes, 5001)
+        try FileManager.default.removeItem(at: blobs.appendingPathComponent("zzz.incomplete"))
+        XCTAssertTrue(ModelLibrary.scanPartials(hub: hub).isEmpty)
     }
 }

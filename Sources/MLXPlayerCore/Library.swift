@@ -38,6 +38,25 @@ public enum ModelLibrary {
         return out.sorted { $0.meta.id < $1.meta.id }
     }
 
+    /// Downloads that were started but never finished (stopped, crashed, or app quit). Resumable with `hf download`.
+    public static func scanPartials(hub: URL) -> [PartialModel] {
+        let fm = FileManager.default
+        guard let dirs = try? fm.contentsOfDirectory(at: hub, includingPropertiesForKeys: nil) else { return [] }
+        var out: [PartialModel] = []
+        for dir in dirs where dir.lastPathComponent.hasPrefix("models--") {
+            let blobs = dir.appendingPathComponent("blobs", isDirectory: true)
+            let bytes = directorySize(blobs)
+            guard bytes > 0 else { continue }
+            let snapshots = dir.appendingPathComponent("snapshots", isDirectory: true)
+            let hasConfig = (try? fm.contentsOfDirectory(at: snapshots, includingPropertiesForKeys: nil))?
+                .contains { fm.fileExists(atPath: $0.appendingPathComponent("config.json").path) } ?? false
+            if hasConfig && directorySize(blobs, suffix: ".incomplete") == 0 { continue }
+            let id = String(dir.lastPathComponent.dropFirst("models--".count)).replacingOccurrences(of: "--", with: "/")
+            out.append(PartialModel(id: id, bytes: bytes))
+        }
+        return out.sorted { $0.id < $1.id }
+    }
+
     /// Bytes under a folder; with `suffix`, only files ending in it.
     public static func directorySize(_ url: URL, suffix: String? = nil) -> UInt64 {
         let fm = FileManager.default
@@ -54,6 +73,11 @@ public enum ModelLibrary {
     public static func delete(hub: URL, id: String) throws {
         try FileManager.default.removeItem(at: repoDirectory(hub: hub, id: id))
     }
+}
+
+public struct PartialModel: Identifiable, Equatable, Sendable {
+    public var id: String
+    public var bytes: UInt64
 }
 
 public struct DownloadProgress: Equatable, Sendable {
@@ -97,6 +121,10 @@ public final class ModelDownload: @unchecked Sendable {
     private let onLog: @Sendable (String) -> Void
     private var cancelled = false
     private let lock = NSLock()
+    /// Seconds without a single new byte before the transfer is restarted (it resumes from partial files).
+    private let stallLimit: TimeInterval = 45
+    private var lastGrowth = Date()
+    private var restarts = 0
 
     public init(modelID: String, paths: AppPaths, totalBytes: UInt64?,
                 onProgress: @escaping @Sendable (DownloadProgress) -> Void,
@@ -126,6 +154,9 @@ public final class ModelDownload: @unchecked Sendable {
         env["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
         env["HF_HUB_DISABLE_TELEMETRY"] = "1"
         for (k, v) in HFToken.environment() { env[k] = v }
+        // After a stalled attempt, fall back from the Xet transfer backend to plain HTTP.
+        if restarts > 0 { env["HF_HUB_DISABLE_XET"] = "1" }
+        lastGrowth = Date()
         let onLog = self.onLog
         let p = ManagedProcess(executable: cli, arguments: ["download", modelID], environment: env) { onLog($0) }
         try p.start()
@@ -135,8 +166,27 @@ public final class ModelDownload: @unchecked Sendable {
         startTimer()
         Task { [weak self] in
             let code = await p.waitUntilExit()
-            self?.finish(exitCode: code)
+            self?.processExited(p, code: code)
         }
+    }
+
+    /// A process we killed ourselves to restart a stall must not be reported as a failure.
+    private var restarting = false
+
+    private func processExited(_ p: ManagedProcess, code: Int32) {
+        let again = lock.withLock { () -> Bool in
+            let r = restarting && process === p
+            if r { restarting = false }
+            return r
+        }
+        if again {
+            timer?.cancel(); timer = nil
+            restarts += 1
+            onLog("Download stalled; retrying (attempt \(restarts + 1)).")
+            do { try start() } catch { finish(exitCode: 1) }
+            return
+        }
+        finish(exitCode: code)
     }
 
     private func startTimer() {
@@ -154,6 +204,15 @@ public final class ModelDownload: @unchecked Sendable {
         if dt > 0 {
             let instant = Double(bytes >= lastBytes ? bytes - lastBytes : 0) / dt
             smoothed = smoothed == 0 ? instant : smoothed * 0.7 + instant * 0.3
+        }
+        if bytes > lastBytes { lastGrowth = now }
+        else if now.timeIntervalSince(lastGrowth) > stallLimit, restarts < 5, let p = process {
+            let go = lock.withLock { () -> Bool in
+                if restarting || cancelled { return false }
+                restarting = true
+                return true
+            }
+            if go { p.terminate(grace: 2) }
         }
         lastBytes = bytes
         lastTime = now

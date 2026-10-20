@@ -124,7 +124,7 @@ struct Sidebar: View {
                     Text(running ? "Running" : (model.serverState.isStarting ? "Loading" : "Idle"))
                         .font(.system(size: 12, weight: .semibold))
                 }
-                if let id = model.activeModelID ?? model.app.lastModelID, model.isRunning || model.installed.contains(where: { $0.id == id }) {
+                if let id = model.shownModelID {
                     Text(ModelMetadata.fromName(id).displayName).font(.system(size: 11.5)).lineLimit(1)
                 }
                 Text("\(model.draft.host == "0.0.0.0" ? "127.0.0.1" : model.draft.host):\(model.draft.port)")

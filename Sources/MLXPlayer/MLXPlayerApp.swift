@@ -50,6 +50,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
             return
         }
         setUpStatusItem()
+        // The SwiftUI placeholder Settings scene must never surface as an empty window.
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
+            guard let w = note.object as? NSWindow, w.identifier?.rawValue.localizedCaseInsensitiveContains("settings") == true else { return }
+            w.close()
+        }
         model.launch()
         if model.showSetup { showMain() }
         // Scripted check: MLX_SHOW_POPOVER=1 opens the popover and writes where it landed.

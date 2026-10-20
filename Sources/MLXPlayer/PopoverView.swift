@@ -90,7 +90,7 @@ struct PopoverView: View {
     }
 
     private var modelCard: some View {
-        let id = model.activeModelID ?? model.app.lastModelID
+        let id = model.shownModelID
         return Card {
             VStack(alignment: .leading, spacing: 10) {
                 if let id {
@@ -195,7 +195,7 @@ struct PopoverView: View {
 
     private var switchList: some View {
         let loaded = model.isRunning ? model.activeModelID : nil
-        let cardID = model.activeModelID ?? model.app.lastModelID
+        let cardID = model.shownModelID
         let others = Array(model.installed.filter { loaded != nil || $0.id != cardID }.sorted { ($0.id == loaded ? 0 : 1) < ($1.id == loaded ? 0 : 1) }.prefix(4))
         return VStack(alignment: .leading, spacing: 2) {
             if !others.isEmpty { Label2("Switch model").padding(.bottom, 2) }
