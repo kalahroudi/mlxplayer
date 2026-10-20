@@ -57,7 +57,14 @@ struct SetupView: View {
                     Image(systemName: "checkmark.seal").foregroundStyle(Color.accentIndigo)
                     Label2("Detected on this Mac")
                     Spacer()
-                    Text("Used to judge which models will run").font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles").font(.system(size: 10))
+                        Text("For smart model suggestions").font(.system(size: 11, weight: .medium)).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.accentIndigo)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.accentIndigo.opacity(0.14), in: Capsule())
+                    .fixedSize()
                 }
                 HStack(spacing: 0) {
                     detected("Chip", hw.chip.isEmpty ? "Unknown" : hw.chip)
