@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(Navigator.self) private var nav
     private var tab: Binding<Tab> { Binding(get: { nav.settingsTab }, set: { nav.settingsTab = $0 }) }
     @State private var installNote: String?
+    @State private var mcpState: AppModel.MCPRegistration = .notInstalled
     @State private var tokenDraft = ""
     @State private var tokenSaved = HFToken.isSaved
 
@@ -92,7 +93,17 @@ struct SettingsView: View {
                         CodeBlock(text: command, height: 56)
                         HStack {
                             Button("Copy") { model.copy(command) }.buttonStyle(.pill)
-                            Button("Install") { installMCP() }.buttonStyle(.pillPrimary)
+                            switch mcpState {
+                            case .notInstalled:
+                                Button("Install") { runClaude(command) }.buttonStyle(.pillPrimary)
+                            case .outdated:
+                                Button("Update") { runClaude("claude mcp remove mlxplayer -s local; claude mcp remove mlxplayer -s user; " + command) }
+                                    .buttonStyle(.pillPrimary)
+                            case .installed:
+                                Label("Installed", systemImage: "checkmark.circle.fill").font(.system(size: 12.5)).foregroundStyle(Color.good)
+                                Button("Remove") { runClaude("claude mcp remove mlxplayer -s local; claude mcp remove mlxplayer -s user") }
+                                    .buttonStyle(.pill)
+                            }
                             if let installNote { Text(installNote).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
                         }
                     }
@@ -112,6 +123,7 @@ struct SettingsView: View {
             }
             .frame(width: 400)
         }
+        .onAppear { mcpState = model.mcpRegistration() }
     }
 
     private var mlx: some View {
@@ -139,9 +151,9 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Runs `claude mcp add` through a login shell so PATH matches the user's terminal.
-    private func installMCP() {
-        let command = model.claudeMCPCommand()
+    /// Runs a `claude mcp` command through a login shell so PATH matches the user's terminal, then re-reads the state.
+    private func runClaude(_ command: String) {
+        installNote = nil
         Task.detached {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/bin/zsh")
@@ -151,7 +163,10 @@ struct SettingsView: View {
             do {
                 try p.run(); p.waitUntilExit()
                 let ok = p.terminationStatus == 0
-                await MainActor.run { installNote = ok ? "Added" : "Failed. Copy the command instead." }
+                await MainActor.run {
+                    mcpState = model.mcpRegistration()
+                    installNote = ok ? nil : "Failed. Copy the command instead."
+                }
             } catch {
                 await MainActor.run { installNote = "Claude Code not found" }
             }

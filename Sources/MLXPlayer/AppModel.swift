@@ -970,7 +970,24 @@ final class AppModel {
 
     func claudeMCPCommand() -> String {
         let exe = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/mlxplayer-mcp").path
-        return "claude mcp add mlxplayer -- \"\(exe)\""
+        return "claude mcp add -s user mlxplayer -- \"\(exe)\""
+    }
+
+    enum MCPRegistration { case notInstalled, installed, outdated }
+
+    /// Looks for an `mlxplayer` server in Claude Code's config (user scope or any project) and whether it points at this app.
+    func mcpRegistration() -> MCPRegistration {
+        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude.json")
+        guard let data = try? Data(contentsOf: url),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return .notInstalled }
+        var servers: [[String: Any]] = []
+        if let s = (root["mcpServers"] as? [String: Any])?["mlxplayer"] as? [String: Any] { servers.append(s) }
+        for (_, project) in (root["projects"] as? [String: Any]) ?? [:] {
+            if let s = ((project as? [String: Any])?["mcpServers"] as? [String: Any])?["mlxplayer"] as? [String: Any] { servers.append(s) }
+        }
+        if servers.isEmpty { return .notInstalled }
+        let exe = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/mlxplayer-mcp").path
+        return servers.contains { ($0["command"] as? String) == exe } ? .installed : .outdated
     }
 }
 
