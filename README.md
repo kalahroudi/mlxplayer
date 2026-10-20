@@ -13,15 +13,12 @@
   <img src="docs/images/overview-dark.png" alt="MLX Player overview: memory, GPU, VRAM and CPU gauges" width="860">
 </p>
 
-<p align="center">
-  <img src="docs/images/discover-dark.png" alt="Discover MLX models with fit badges" width="420">
-  <img src="docs/images/advisor-dark.png" alt="Advisor recommends models for your Mac" width="420">
-</p>
-
-<p align="center">
-  <img src="docs/images/popover-dark.png" alt="Menu bar popover, dark" width="240">
-  <img src="docs/images/popover.png" alt="Menu bar popover, light" width="240">
-</p>
+<table align="center">
+  <tr>
+    <td valign="top"><img src="docs/images/discover-dark.png" alt="Discover MLX models with fit badges" width="520"><br><img src="docs/images/advisor-dark.png" alt="Advisor recommends models for your Mac" width="520"></td>
+    <td valign="top"><img src="docs/images/popover-dark.png" alt="Menu bar popover, dark" width="250"> <img src="docs/images/popover.png" alt="Menu bar popover, light" width="250"></td>
+  </tr>
+</table>
 
 ## What it does
 
@@ -33,13 +30,42 @@
 - **Library, Usage, Logs, Chat** screens, plus a Hugging Face token kept in the Keychain.
 - **Agent access** through an MCP server, so tools like Claude Code can manage models for you (see below).
 
+## Install with your AI agent
+
+Paste this into your agent (Claude Code, Cursor, Codex, etc.). If you are an agent, follow it. It installs MLX Player and connects it over MCP.
+
+````text
+Install MLX Player (https://github.com/kalahroudi/mlxplayer) on this Mac and connect it to me.
+
+1. Check prerequisites: `uname -m` must print `arm64` and `sw_vers -productVersion` must be 14 or newer.
+2. Install the latest release (no Xcode needed):
+   cd "$(mktemp -d)" && gh release download --repo kalahroudi/mlxplayer --pattern 'MLX-Player-*.dmg' --pattern SHA256SUMS
+   (or curl the DMG and SHA256SUMS from https://github.com/kalahroudi/mlxplayer/releases/latest)
+   Verify with `shasum -a 256 -c SHA256SUMS`, then `hdiutil attach` the DMG and copy "MLX Player.app" to /Applications.
+   If there is no release or the download fails, build from source instead: `xcode-select -p` must succeed
+   (otherwise tell me to run `xcode-select --install` and wait), then
+   git clone https://github.com/kalahroudi/mlxplayer.git ~/mlxplayer && cd ~/mlxplayer && scripts/bundle.sh
+   and copy dist/"MLX Player.app" to /Applications.
+3. Launch it with `open "/Applications/MLX Player.app"`. Tell me to right-click > Open if macOS blocks it.
+4. First run: the app's Setup screen installs uv, Python and mlx-lm. Ask me to click through it,
+   or tell me it is already done if Settings shows mlx-lm installed.
+5. Register the MCP server for yourself:
+   claude mcp add -s user mlxplayer -- "/Applications/MLX Player.app/Contents/MacOS/mlxplayer-mcp"
+   (For other agents, add a stdio MCP server named `mlxplayer` with that command.)
+   Then restart or reload so the tools appear.
+6. Verify by calling `get_hardware` and `get_status`. Report the chip, memory and server state.
+7. Do not download or load a model, or change settings, until I approve. Use `recommend_models` and show me the options first.
+````
+
 ## Requirements
 
 - Apple Silicon Mac, macOS 14 or newer
 - Xcode command line tools (`xcode-select --install`) to build from source
 - Git
 
-## Install
+## Install manually
+
+Download the DMG from [Releases](https://github.com/kalahroudi/mlxplayer/releases/latest), or build from source:
 
 ```sh
 git clone https://github.com/kalahroudi/mlxplayer.git
@@ -63,31 +89,9 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 Point any OpenAI-compatible client at `http://127.0.0.1:8080/v1` (any API key value works). The model loads on the first request.
 
-## For AI agents
+## Agent access (MCP)
 
-Agents can install MLX Player and then drive it over MCP. If you are a user, paste the prompt below into your agent (Claude Code, Cursor, Codex, etc.). If you are an agent, follow it.
-
-### Prompt to install
-
-````text
-Install MLX Player (https://github.com/kalahroudi/mlxplayer) on this Mac and connect it to me.
-
-1. Check prerequisites: `uname -m` must print `arm64` and `sw_vers -productVersion` must be 14 or newer.
-   If `xcode-select -p` fails, tell me to run `xcode-select --install` and wait. Do not continue without it.
-2. Clone and build:
-   git clone https://github.com/kalahroudi/mlxplayer.git ~/mlxplayer
-   cd ~/mlxplayer && scripts/bundle.sh
-3. Install the app: `cp -R "dist/MLX Player.app" /Applications/` (if that is not writable, leave it in dist/).
-   Launch it with `open "/Applications/MLX Player.app"` and tell me to right-click > Open if macOS blocks it.
-4. First run: the app's Setup screen installs uv, Python and mlx-lm. Ask me to click through it,
-   or tell me it is already done if Settings shows mlx-lm installed.
-5. Register the MCP server for yourself:
-   claude mcp add -s user mlxplayer -- "/Applications/MLX Player.app/Contents/MacOS/mlxplayer-mcp"
-   (For other agents, add a stdio MCP server named `mlxplayer` with that command.)
-   Then restart or reload so the tools appear.
-6. Verify by calling `get_hardware` and `get_status`. Report the chip, memory and server state.
-7. Do not download or load a model, or change settings, until I approve. Use `recommend_models` and show me the options first.
-````
+Once installed (see above), agents drive MLX Player over MCP.
 
 ### MCP tools
 
