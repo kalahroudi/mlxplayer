@@ -10,12 +10,12 @@ browser, or see the published canvas: https://claude.ai/artifact/PtGiNC8E4Wk8ig7
 
 | Part | Status |
 |---|---|
-| `Sources/MLXPlayerCore` (platform-neutral logic) | Done. Builds on Linux and macOS. **40 tests pass** (`swift test`). |
-| `Sources/mlxplayer-mcp` (stdio MCP server) | Done and builds. Read-only tools run locally; changing tools call the app's control API. |
-| `Sources/MLXPlayer/AppModel.swift` | Written, **never compiled** (needs macOS). Syntax-checked only. |
-| `Sources/MLXPlayer/Theme.swift`, `BrandIcons.swift` | Written, **never compiled**. |
-| SwiftUI views (popover, main window, screens) | **Not written yet.** |
-| App bundling (Info.plist, icon, `.app`, notarization) | **Not started.** |
+| `Sources/MLXPlayerCore` | Done. **42 tests pass** (`swift test`). |
+| `Sources/mlxplayer-mcp` | Done. Verified end to end against the running app (get_status, start_server, stop_server). |
+| `Sources/MLXPlayer` | Compiles. App entry, popover, sidebar shell and all screens written (Setup, Discover, Library, Server, Advisor, Memory, Usage, Logs, Settings). |
+| `scripts/bundle.sh` | Builds `dist/MLX Player.app` (Info.plist, LSUIElement, macOS 14, icon, mcp copied, ad-hoc signed, sandbox off). |
+| Visual pass | **Not done.** Layouts have not been compared with `design/` on screen yet; check each screen at 1240x820 for clipping and scrolling. |
+| Untested on hardware | First-run installer from the UI, downloads from the UI, real memory-pressure responses, notarization. |
 
 The macOS target is only declared on macOS (`#if os(macOS)` in `Package.swift`), so Linux CI still builds the core.
 **The first job on a Mac is `swift build` and fixing compile errors in `Sources/MLXPlayer`.**
@@ -76,10 +76,10 @@ Design rules the user set (keep them):
 
 ## Known gaps and decisions to revisit
 
-- **Context length**: `mlx_lm.server` may not have a KV-size flag. The proxy enforces the limit by estimating prompt tokens
+- **Context length** (verified on mlx-lm 0.32.2): `mlx_lm.server` has **no** `--max-kv-size`. The proxy enforces the limit by estimating prompt tokens
   (about 3.2 chars/token) and returning an OpenAI-style `context_length_exceeded`. If `--max-kv-size` exists, it is also passed.
   Verify against the installed mlx-lm (`FlagProbe`).
-- **KV cache quantization** is not exposed; confirm whether the server supports it before adding UI.
+- **KV cache quantization**: `--kv-bits` exists (also `--kv-group-size`, `--quantized-kv-start`). Exposed as Server > KV cache. mlx-lm serves one request at a time when it is set.
 - **Trim prompt cache** cannot be done live (no API). `AppModel.trimCacheWhenIdle` restarts with a smaller
   `--prompt-cache-bytes` once idle. The Memory screen should say so.
 - **Speed estimates** use memory bandwidth x efficiency (0.8 dense, 0.45 MoE). Calibrate against real runs, ideally with a
@@ -110,3 +110,10 @@ swift run mlxplayer-mcp     # stdio MCP server
 3. Screens in the order above, each backed by `AppModel`.
 4. Bundle script: `.app`, Info.plist (`LSUIElement`, min macOS 14), icon, copy `mlxplayer-mcp` into `Contents/MacOS`.
 5. Real-hardware pass: install flow, load a model, stream through the proxy, idle unload, memory pressure, MCP from Claude Code.
+
+## Verified on hardware (M4 Max, mlx-lm 0.32.2)
+
+- On-demand load on first request, SSE streaming through the proxy, usage log, `context_length_exceeded`, and idle unload (1 min) all work.
+- All flags we emit exist in `mlx_lm.server --help` (pinned in `SettingsTests`). Not in 0.32.2: `--max-kv-size`.
+- Settings files with missing keys used to reset everything; loading is now lenient (`SettingsStore.decodeLeniently`).
+- Bundle: `scripts/bundle.sh` then `open "dist/MLX Player.app"`.
