@@ -41,6 +41,16 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(flags.count, s.arguments().filter { $0.hasPrefix("--") }.count + 1, "nothing we emit is dropped")
     }
 
+    func testPartialSettingsFileKeepsStoredValuesAndDefaults() {
+        let json = #"{"app":{"idleUnloadMinutes":7,"lastModelID":"a/b"},"perModel":{"a/b":{"modelID":"a/b","contextLength":4096}}}"#
+        let p = SettingsStore.decodeLeniently(Data(json.utf8))
+        XCTAssertEqual(p.app.idleUnloadMinutes, 7)
+        XCTAssertEqual(p.app.lastModelID, "a/b")
+        XCTAssertTrue(p.app.onDemandLoading)
+        XCTAssertEqual(p.perModel["a/b"]?.contextLength, 4096)
+        XCTAssertEqual(p.perModel["a/b"]?.port, 8080)
+    }
+
     func testPortOverrideForProxy() {
         let s = ServerSettings(modelID: "m/x")
         XCTAssertEqual(s.arguments(portOverride: 8081)[s.arguments(portOverride: 8081).firstIndex(of: "--port")! + 1], "8081")

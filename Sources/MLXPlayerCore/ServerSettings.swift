@@ -170,7 +170,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
 /// Reads and writes settings as JSON under the app folder.
 public final class SettingsStore: @unchecked Sendable {
-    private struct Payload: Codable {
+    struct Payload: Codable {
         var app = AppSettings()
         var perModel: [String: ServerSettings] = [:]
     }
@@ -181,9 +181,27 @@ public final class SettingsStore: @unchecked Sendable {
 
     public init(paths: AppPaths) {
         url = paths.settingsFile
-        if let data = try? Data(contentsOf: url), let p = try? JSONDecoder().decode(Payload.self, from: data) {
-            payload = p
+        if let data = try? Data(contentsOf: url) { payload = Self.decodeLeniently(data) }
+    }
+
+    /// Fills keys missing from an older or hand-edited file with defaults, so new settings never reset old ones.
+    static func decodeLeniently(_ data: Data) -> Payload {
+        var out = Payload()
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return out }
+        func merged<T: Codable>(_ stored: Any?, over base: T) -> T {
+            guard let stored = stored as? [String: Any],
+                  let baseData = try? JSONEncoder().encode(base),
+                  var dict = try? JSONSerialization.jsonObject(with: baseData) as? [String: Any] else { return base }
+            for (k, v) in stored { dict[k] = v }
+            guard let mergedData = try? JSONSerialization.data(withJSONObject: dict),
+                  let value = try? JSONDecoder().decode(T.self, from: mergedData) else { return base }
+            return value
         }
+        out.app = merged(root["app"], over: AppSettings())
+        for (id, raw) in (root["perModel"] as? [String: Any]) ?? [:] {
+            out.perModel[id] = merged(raw, over: ServerSettings(modelID: id))
+        }
+        return out
     }
 
     public var app: AppSettings {

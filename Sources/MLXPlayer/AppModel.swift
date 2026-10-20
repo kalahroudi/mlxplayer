@@ -627,6 +627,7 @@ final class AppModel {
     private func statusJSON() -> [String: Any] {
         [
             "state": String(describing: serverState),
+            "error": lastError ?? "",
             "model": activeModelID ?? app.lastModelID ?? "",
             "endpoint": endpoint,
             "tokens_per_second": tokensPerSecond,
