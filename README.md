@@ -13,12 +13,11 @@
   <img src="docs/images/overview-dark.png" alt="MLX Player overview: memory, GPU, VRAM and CPU gauges" width="860">
 </p>
 
-<table align="center">
-  <tr>
-    <td valign="top"><img src="docs/images/discover-dark.png" alt="Discover MLX models with fit badges" width="520"><br><img src="docs/images/advisor-dark.png" alt="Advisor recommends models for your Mac" width="520"></td>
-    <td valign="top"><img src="docs/images/popover-dark.png" alt="Menu bar popover, dark" width="250"> <img src="docs/images/popover.png" alt="Menu bar popover, light" width="250"></td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://kalahroudi.github.io/mlxplayer/">Website</a> ·
+  <a href="https://github.com/kalahroudi/mlxplayer/releases/latest">Download</a> ·
+  <a href="#install-with-your-ai-agent">Install with your agent</a>
+</p>
 
 ## What it does
 

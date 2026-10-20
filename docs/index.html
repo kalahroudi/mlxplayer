@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MLX Player</title>
+<meta name="description" content="A tiny native macOS menu bar app that installs mlx-lm, finds models that fit your Mac and serves them on a local OpenAI-compatible endpoint.">
+<meta property="og:title" content="MLX Player">
+<meta property="og:description" content="Run local MLX models on your Mac from the menu bar. 3.4 MB, native, agent-ready.">
+<meta property="og:image" content="https://kalahroudi.github.io/mlxplayer/images/overview-dark.png">
+<link rel="icon" href="images/logo.png">
+<style>
+  :root {
+    --bg: #0b0c10; --bg2: #11131a; --card: #14161f; --line: rgba(255,255,255,.08);
+    --text: #eceef5; --muted: #9aa0b4; --accent: #5b63f5; --accent2: #7c83ff; --mint: #44e0a1; --amber: #f5b342;
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f7fb; --bg2: #ffffff; --card: #ffffff; --line: rgba(10,12,30,.1); --text: #14162a; --muted: #5d637a; --accent: #4a52e8; --accent2: #5b63f5; }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent2); text-decoration: none; } a:hover { text-decoration: underline; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; gap: 22px; height: 58px; }
+  nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); }
+  nav .brand img { width: 26px; height: 26px; }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  nav .links a { color: var(--muted); } nav .links a:hover { color: var(--text); text-decoration: none; }
+  @media (max-width: 720px) { nav .links a:not(.gh) { display: none; } }
+  .hero { text-align: center; padding: 84px 0 40px; position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset: -200px 0 auto 0; height: 600px; background: radial-gradient(ellipse at 50% 0%, rgba(91,99,245,.35), transparent 62%); pointer-events: none; }
+  .hero img.logo { width: 92px; height: 92px; filter: drop-shadow(0 14px 30px rgba(91,99,245,.45)); }
+  h1 { font-size: clamp(38px, 6vw, 66px); line-height: 1.05; letter-spacing: -.03em; margin: 22px 0 16px; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent2), var(--mint)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { max-width: 640px; margin: 0 auto; color: var(--muted); font-size: 19px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 30px 0 8px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 12px; font-weight: 600; border: 1px solid var(--line); color: var(--text); background: var(--card); cursor: pointer; font-size: 15px; font-family: inherit; }
+  .btn:hover { text-decoration: none; border-color: rgba(124,131,255,.5); }
+  .btn.primary { background: linear-gradient(180deg, var(--accent2), var(--accent)); border-color: transparent; color: #fff; box-shadow: 0 10px 30px rgba(91,99,245,.4); }
+  .fine { color: var(--muted); font-size: 13px; }
+  .shot { margin: 46px auto 0; max-width: 980px; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 40px 90px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.03); overflow: hidden; background: var(--bg2); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 56px 0 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .stat b { display: block; font-size: 30px; letter-spacing: -.02em; }
+  .stat span { color: var(--muted); font-size: 13.5px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  section { padding: 84px 0 0; }
+  .eyebrow { color: var(--accent2); font-weight: 700; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
+  h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -.02em; line-height: 1.12; margin: 8px 0 14px; }
+  .sub { color: var(--muted); max-width: 680px; font-size: 17px; margin: 0 0 30px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(91,99,245,.16); color: var(--accent2); font-size: 19px; margin-bottom: 14px; }
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 860px) { .why { grid-template-columns: 1fr; } }
+  .why .card { display: flex; gap: 14px; }
+  .why .n { font-weight: 800; color: var(--accent2); font-size: 20px; min-width: 26px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tab { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+  .gallery { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .pane { display: none; } .pane.on { display: block; }
+  .pane .shot { margin: 0 auto; }
+  .pane p { text-align: center; color: var(--muted); max-width: 640px; margin: 16px auto 0; }
+  .pop { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  .pop img { width: 270px; max-width: 100%; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(0,0,0,.4); }
+  .steps { counter-reset: s; display: grid; gap: 14px; }
+  .step { display: grid; grid-template-columns: 40px 1fr; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .step::before { counter-increment: s; content: counter(s); width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(180deg, var(--accent2), var(--accent)); color: #fff; font-weight: 700; display: grid; place-items: center; }
+  .step h3 { margin: 2px 0 4px; font-size: 17px; } .step p { margin: 0; color: var(--muted); }
+  pre, code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  pre { background: #0a0b10; color: #e6e8f2; border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow: auto; font-size: 13.5px; line-height: 1.55; margin: 12px 0 0; position: relative; white-space: pre-wrap; }
+  :not(pre) > code { background: rgba(124,131,255,.14); padding: 2px 6px; border-radius: 6px; font-size: .9em; }
+  .copy { position: absolute; top: 10px; right: 10px; padding: 5px 11px; font-size: 12px; border-radius: 8px; border: 1px solid var(--line); background: #1a1d29; color: #c9cde0; cursor: pointer; font-family: inherit; }
+  .copy:hover { border-color: rgba(124,131,255,.5); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); } tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em; }
+  .pill { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: rgba(68,224,161,.15); color: var(--mint); font-weight: 600; }
+  .pill.ask { background: rgba(245,179,66,.15); color: var(--amber); }
+  footer { margin-top: 96px; border-top: 1px solid var(--line); padding: 34px 0 54px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  footer .sp { margin-left: auto; }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="#top"><img src="images/logo.png" alt="">MLX Player</a>
+  <div class="links">
+    <a href="#why">Why</a><a href="#features">Features</a><a href="#screens">Screens</a><a href="#install">Install</a><a href="#agents">Agents</a>
+    <a class="gh" href="https://github.com/kalahroudi/mlxplayer">GitHub</a>
+  </div>
+</div></nav>
+
+<header class="hero" id="top"><div class="wrap">
+  <img class="logo" src="images/logo.png" alt="MLX Player logo">
+  <h1>Local models on your Mac,<br><em>from the menu bar.</em></h1>
+  <p class="lead">MLX Player installs <code>mlx-lm</code>, finds the models that actually fit your Mac, and serves them on a local OpenAI-compatible endpoint. A small native app, ready for your agents.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/kalahroudi/mlxplayer/releases/latest">Download for macOS</a>
+    <a class="btn" href="#agents">Install with your agent</a>
+  </div>
+  <div class="fine">Apple Silicon · macOS 14+ · Apache 2.0 · 3.4 MB download</div>
+  <div class="shot"><img src="images/overview-dark.png" alt="MLX Player overview with live memory, GPU, VRAM and CPU gauges"></div>
+
+  <div class="stats">
+    <div class="stat"><b>3.4 MB</b><span>disk image</span></div>
+    <div class="stat"><b>0</b><span>Electron, no bundled browser</span></div>
+    <div class="stat"><b>127.0.0.1</b><span>stays on your Mac</span></div>
+    <div class="stat"><b>1 click</b><span>setup, no admin rights</span></div>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<section id="why">
+  <div class="eyebrow">Why we built it</div>
+  <h2>Running a local model should not be a project.</h2>
+  <p class="sub">Getting MLX models running means a Python environment, the right flags, guessing whether a model fits, and a terminal window you must keep open. MLX Player takes that away and stays out of your way.</p>
+  <div class="why">
+    <div class="card"><div class="n">1</div><div><h3>Know what will run before you download</h3><p>The Advisor reads your chip, memory and GPU limit, then marks every model Comfortable, Tight or Won't fit, with a safe context size and a speed estimate you can calibrate with a built-in benchmark.</p></div></div>
+    <div class="card"><div class="n">2</div><div><h3>Memory is yours, not the model's</h3><p>The model loads on the first request and unloads when idle, on sleep, or under memory pressure. Replies in flight are never cut off.</p></div></div>
+    <div class="card"><div class="n">3</div><div><h3>Light on purpose</h3><p>A native Swift app in the menu bar. No Electron, no background services you did not ask for. Everything it installs lives in one folder you can delete.</p></div></div>
+    <div class="card"><div class="n">4</div><div><h3>Built for agents</h3><p>An MCP server lets Claude Code and other agents check your hardware, recommend models, and load or stop them, with approval dialogs for anything that changes state.</p></div></div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="eyebrow">What it does</div>
+  <h2>Everything between "I want a local model" and "it answers".</h2>
+  <p class="sub">&nbsp;</p>
+  <div class="grid">
+    <div class="card"><div class="ico">⚡</div><h3>One-click setup</h3><p>Installs <code>uv</code>, a private Python 3.12 and <code>mlx-lm</code> under Application Support. Nothing global.</p></div>
+    <div class="card"><div class="ico">🔎</div><h3>Discover</h3><p>Search Hugging Face MLX models with size, quantization, capability and family filters, and a fit badge for your Mac.</p></div>
+    <div class="card"><div class="ico">🧭</div><h3>Advisor</h3><p>Best overall, highest quality and fastest model for your job, with context size and headroom.</p></div>
+    <div class="card"><div class="ico">🔌</div><h3>Local endpoint</h3><p><code>http://127.0.0.1:8080/v1</code>, OpenAI-compatible. Streaming, usage metering and CORS handled by a lazy proxy.</p></div>
+    <div class="card"><div class="ico">🧠</div><h3>Memory aware</h3><p>Live memory, GPU, VRAM and CPU, a GPU wired limit control, and automatic responses to pressure.</p></div>
+    <div class="card"><div class="ico">🔀</div><h3>Switch any time</h3><p>Pick a model from the sidebar, popover or library. A switch waits for running requests and restores the previous model if the new one fails.</p></div>
+    <div class="card"><div class="ico">📈</div><h3>Usage</h3><p>Tokens, speed and clients by day. Old records are pruned after 30 days so nothing piles up.</p></div>
+    <div class="card"><div class="ico">💬</div><h3>Chat</h3><p>Try a model right in the app, streaming through the same endpoint your tools use.</p></div>
+    <div class="card"><div class="ico">🔄</div><h3>Self-updating</h3><p>Checks GitHub releases, verifies checksums and signature, and rolls back automatically if the new build fails to start.</p></div>
+  </div>
+</section>
+
+<section id="screens">
+  <div class="eyebrow">Screens</div>
+  <h2>A look inside.</h2>
+  <p class="sub">Dark and light, tabs instead of scrolling, short labels, help on every screen.</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-t="discover">Discover</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="advisor">Advisor</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="server">Server</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="memory">Memory</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="popover">Menu bar</button>
+  </div>
+  <div class="pane on" id="p-discover"><div class="shot"><img loading="lazy" src="images/discover-dark.png" alt="Discover screen"></div><p>Browse MLX models with filters for size, quantization, capability and family. Each row says whether it fits your Mac.</p></div>
+  <div class="pane" id="p-advisor"><div class="shot"><img loading="lazy" src="images/advisor-dark.png" alt="Advisor screen"></div><p>Pick a job and get the best overall, highest quality and fastest model, each with a safe context size.</p></div>
+  <div class="pane" id="p-server"><div class="shot"><img loading="lazy" src="images/server-dark.png" alt="Server screen"></div><p>Context, cache, sampling and network settings, with a live memory budget and copy-ready endpoint, cURL and environment snippets.</p></div>
+  <div class="pane" id="p-memory"><div class="shot"><img loading="lazy" src="images/memory-dark.png" alt="Memory screen"></div><p>Watch pressure and GPU memory, raise the GPU wired limit, and decide when the model should unload.</p></div>
+  <div class="pane" id="p-popover"><div class="pop"><img loading="lazy" src="images/popover-dark.png" alt="Menu bar popover, dark"><img loading="lazy" src="images/popover.png" alt="Menu bar popover, light"></div><p>The menu bar popover shows the loaded model, speed, memory, requests and this Mac at a glance. Copy the URL and go.</p></div>
+</section>
+
+<section id="install">
+  <div class="eyebrow">Install</div>
+  <h2>Two minutes, no admin rights.</h2>
+  <p class="sub">Requires an Apple Silicon Mac on macOS 14 or newer.</p>
+  <div class="two">
+    <div class="steps">
+      <div class="step"><div><h3>Download</h3><p>Get the DMG from <a href="https://github.com/kalahroudi/mlxplayer/releases/latest">Releases</a> and drag MLX Player to Applications. The build is ad-hoc signed, so right-click and choose Open the first time.</p></div></div>
+      <div class="step"><div><h3>Run Setup</h3><p>Open the app. Setup installs <code>uv</code>, Python and <code>mlx-lm</code> into its own folder and picks a first model that fits.</p></div></div>
+      <div class="step"><div><h3>Point your tools at it</h3><p>Use <code>http://127.0.0.1:8080/v1</code> with any API key. The model loads on the first request.</p></div></div>
+    </div>
+    <div>
+      <p class="fine" style="margin:0">Or build from source (needs the Xcode command line tools):</p>
+      <pre><button class="copy" data-copy>Copy</button>git clone https://github.com/kalahroudi/mlxplayer.git
+cd mlxplayer
+scripts/bundle.sh
+open "dist/MLX Player.app"</pre>
+      <p class="fine" style="margin:18px 0 0">Test the endpoint:</p>
+      <pre><button class="copy" data-copy>Copy</button>curl http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"default","messages":[{"role":"user","content":"Hello"}]}'</pre>
+    </div>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="eyebrow">For AI agents</div>
+  <h2>Let your agent install it.</h2>
+  <p class="sub">Paste this prompt into Claude Code, Cursor, Codex or any agent with a shell. It installs MLX Player and connects it over MCP. If you are an agent, follow it.</p>
+  <pre id="agent-prompt"><button class="copy" data-copy>Copy prompt</button>Install MLX Player (https://github.com/kalahroudi/mlxplayer) on this Mac and connect it to me.
+
+1. Check prerequisites: `uname -m` must print `arm64` and `sw_vers -productVersion` must be 14 or newer.
+2. Install the latest release (no Xcode needed):
+   cd "$(mktemp -d)" && gh release download --repo kalahroudi/mlxplayer --pattern 'MLX-Player-*.dmg' --pattern SHA256SUMS
+   (or curl the DMG and SHA256SUMS from https://github.com/kalahroudi/mlxplayer/releases/latest)
+   Verify with `shasum -a 256 -c SHA256SUMS`, then `hdiutil attach` the DMG and copy "MLX Player.app" to /Applications.
+   If there is no release or the download fails, build from source instead: `xcode-select -p` must succeed
+   (otherwise tell me to run `xcode-select --install` and wait), then
+   git clone https://github.com/kalahroudi/mlxplayer.git ~/mlxplayer && cd ~/mlxplayer && scripts/bundle.sh
+   and copy dist/"MLX Player.app" to /Applications.
+3. Launch it with `open "/Applications/MLX Player.app"`. Tell me to right-click > Open if macOS blocks it.
+4. First run: the app's Setup screen installs uv, Python and mlx-lm. Ask me to click through it,
+   or tell me it is already done if Settings shows mlx-lm installed.
+5. Register the MCP server for yourself:
+   claude mcp add -s user mlxplayer -- "/Applications/MLX Player.app/Contents/MacOS/mlxplayer-mcp"
+   (For other agents, add a stdio MCP server named `mlxplayer` with that command.)
+   Then restart or reload so the tools appear.
+6. Verify by calling `get_hardware` and `get_status`. Report the chip, memory and server state.
+7. Do not download or load a model, or change settings, until I approve. Use `recommend_models` and show me the options first.</pre>
+
+  <h2 style="margin-top:46px;font-size:26px">MCP tools</h2>
+  <p class="sub" style="margin-bottom:16px">Control calls use a loopback API with a bearer token, and anything that changes state shows an approval dialog in the app.</p>
+  <table>
+    <tr><th>Tool</th><th>What it does</th><th>Approval</th></tr>
+    <tr><td><code>get_hardware</code></td><td>Chip, memory, GPU limit, bandwidth, usable memory</td><td><span class="pill">No</span></td></tr>
+    <tr><td><code>search_models</code></td><td>Search MLX models on Hugging Face</td><td><span class="pill">No</span></td></tr>
+    <tr><td><code>analyze_model</code></td><td>Fit, context, speed estimate and memory breakdown</td><td><span class="pill">No</span></td></tr>
+    <tr><td><code>recommend_models</code></td><td>Best overall, highest quality and fastest for a job</td><td><span class="pill">No</span></td></tr>
+    <tr><td><code>get_status</code></td><td>Server state, loaded model, endpoint, memory, speed</td><td><span class="pill">No</span></td></tr>
+    <tr><td><code>download_model</code></td><td>Download a model to the Hugging Face cache</td><td><span class="pill ask">Asks</span></td></tr>
+    <tr><td><code>start_server</code></td><td>Load a model and start the server</td><td><span class="pill ask">Asks</span></td></tr>
+    <tr><td><code>update_settings</code></td><td>Change saved settings for a model</td><td><span class="pill ask">Asks</span></td></tr>
+    <tr><td><code>stop_server</code></td><td>Stop the server and free memory</td><td><span class="pill ask">Asks</span></td></tr>
+    <tr><td><code>delete_model</code></td><td>Delete a downloaded model</td><td><span class="pill ask">Always</span></td></tr>
+  </table>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  <span>MLX Player · Apache 2.0</span>
+  <a href="https://github.com/kalahroudi/mlxplayer">GitHub</a>
+  <a href="https://github.com/kalahroudi/mlxplayer/releases">Releases</a>
+  <a href="https://github.com/kalahroudi/mlxplayer/issues">Issues</a>
+  <span class="sp">Not affiliated with Apple or the MLX project.</span>
+</div></footer>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-selected', x === t ? 'true' : 'false'); });
+      document.querySelectorAll('.pane').forEach(function (p) { p.classList.toggle('on', p.id === 'p-' + t.dataset.t); });
+    });
+  });
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var pre = b.parentElement;
+      var text = Array.from(pre.childNodes).filter(function (n) { return n !== b; }).map(function (n) { return n.textContent; }).join('');
+      var label = b.textContent;
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+        b.textContent = 'Copied'; setTimeout(function () { b.textContent = label; }, 1400);
+      }).catch(function () {});
+    });
+  });
+</script>
+</body>
+</html>
