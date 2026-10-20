@@ -26,9 +26,9 @@ final class BenchmarkTests: XCTestCase {
         let est: (ModelMetadata) -> Double = { _ in 100 }
         func r(_ id: String, _ tps: Double) -> BenchmarkResult { BenchmarkResult(modelID: id, decodeTokensPerSecond: tps, firstTokenMs: 1, tokens: 100, chip: chip) }
         XCTAssertEqual(SpeedCalibration.factor(results: [], chip: chip, estimate: est), 1)
-        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-4bit", 50), r("a/y-4bit", 60), r("a/z-4bit", 400)], chip: chip, estimate: est), 0.6, accuracy: 0.001)
-        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-4bit", 5)], chip: chip, estimate: est), 0.25, accuracy: 0.001)
-        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-4bit", 50)], chip: "Other Chip", estimate: est), 1, "other chips are ignored")
+        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-8B-4bit", 50), r("a/y-8B-4bit", 60), r("a/z-8B-4bit", 400)], chip: chip, estimate: est), 0.6, accuracy: 0.001)
+        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-8B-4bit", 5)], chip: chip, estimate: est), 0.25, accuracy: 0.001)
+        XCTAssertEqual(SpeedCalibration.factor(results: [r("a/x-8B-4bit", 50)], chip: "Other Chip", estimate: est), 1, "other chips are ignored")
     }
 
     func testTinyModelsDoNotCalibrateLargeOnes() {
