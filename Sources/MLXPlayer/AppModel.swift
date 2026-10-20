@@ -74,6 +74,9 @@ final class AppModel {
     var publisher: String? = "mlx-community"
     var results: [ModelMetadata] = []
     var searching = false
+    var loadingMore = false
+    private(set) var searchCursor: URL?
+    var hasMoreResults: Bool { searchCursor != nil }
     var searchError: String?
 
     // MARK: Advisor
@@ -525,14 +528,37 @@ final class AppModel {
         searching = true
         searchError = nil
         defer { searching = false }
-        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, limit: 60)
+        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, limit: 30)
         if filter.variant != .standard { q.publisher = nil }
         do {
-            results = try await hf.search(q)
+            let page = try await hf.searchPage(q)
+            results = page.models
+            searchCursor = page.next
         } catch {
-            searchError = "Couldn't reach Hugging Face. Check your connection."
+            searchError = Self.searchMessage(error)
             results = []
+            searchCursor = nil
         }
+    }
+
+    /// Fetches the next page and appends it. Pages are small, so the list never loads everything at once.
+    func loadMoreResults() async {
+        guard let cursor = searchCursor, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        do {
+            let page = try await hf.searchPage(SearchQuery(), cursor: cursor)
+            let known = Set(results.map(\.id))
+            results += page.models.filter { !known.contains($0.id) }
+            searchCursor = page.next
+        } catch {
+            searchError = Self.searchMessage(error)
+        }
+    }
+
+    private static func searchMessage(_ error: Error) -> String {
+        if error is URLError { return "Couldn't reach Hugging Face. Check your connection." }
+        return error.localizedDescription
     }
 
     var filteredResults: [ModelMetadata] {
