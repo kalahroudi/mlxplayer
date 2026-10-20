@@ -25,15 +25,28 @@ struct MemoryView: View {
 
     @State private var limitBusy = false
     @State private var limitNote: String?
+    @State private var keepAfterRestart = GPULimit.persistedMB != nil
+    @State private var persistedMB = GPULimit.persistedMB
 
     /// Asks macOS for admin rights and sets the limit; it lasts until restart.
     private func applyLimit(_ mb: Int) {
         limitBusy = true; limitNote = nil
         Task {
             do {
-                try await GPULimit.apply(mb: mb, totalBytes: model.hardware.memoryBytes)
+                let total = model.hardware.memoryBytes
+                if mb == 0 {
+                    // Reset also stops keeping the limit; removing the daemon resets the value in one prompt.
+                    if persistedMB != nil { try await GPULimit.removePersistence() } else { try await GPULimit.apply(mb: 0, totalBytes: total) }
+                } else if keepAfterRestart {
+                    try await GPULimit.persist(mb: mb, totalBytes: total)
+                } else {
+                    try await GPULimit.apply(mb: mb, totalBytes: total)
+                    if persistedMB != nil { try await GPULimit.removePersistence(); try await GPULimit.apply(mb: mb, totalBytes: total) }
+                }
+                persistedMB = GPULimit.persistedMB
+                keepAfterRestart = persistedMB != nil
                 model.hardware = HardwareProbe.current()
-                limitNote = mb == 0 ? "Reset to default" : "Applied until restart"
+                limitNote = mb == 0 ? "Reset to default" : (persistedMB != nil ? "Applied and kept after restart" : "Applied until restart")
             } catch { limitNote = error.localizedDescription }
             limitBusy = false
         }
@@ -73,6 +86,12 @@ struct MemoryView: View {
                             Button("Apply") { applyLimit(mb) }.buttonStyle(.pillPrimary).disabled(limitBusy)
                             Button("Reset") { applyLimit(0) }.buttonStyle(.pill).disabled(limitBusy)
                             Button("Copy") { model.copy("sudo sysctl iogpu.wired_limit_mb=\(mb)") }.buttonStyle(.pill)
+                        }
+                        Toggle(isOn: $keepAfterRestart) { Text("Keep after restart").font(.system(size: 12.5)) }
+                            .toggleStyle(.switch).controlSize(.small).tint(.accentIndigo)
+                            .help("Installs a small system service that sets the limit at every boot. Asks for your password.")
+                        if let persistedMB {
+                            Text("Kept: \(persistedMB / 1024) GB at every start").font(.system(size: 11.5)).foregroundStyle(Color.good)
                         }
                         if let limitNote { Text(limitNote).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
                         SettingRow(title: "Keep free") {

@@ -87,3 +87,43 @@ final class ModelFormatTests: XCTestCase {
         XCTAssertEqual(f.apply(models, advisor: nil).map(\.id), ["unsloth/Qwen3-8B-GGUF"])
     }
 }
+
+final class GPUPersistTests: XCTestCase {
+    func testPlistIsValidAndCarriesValue() throws {
+        let xml = GPULimit.daemonPlist(mb: 40960)
+        let plist = try PropertyListSerialization.propertyList(from: Data(xml.utf8), format: nil) as? [String: Any]
+        XCTAssertEqual(plist?["Label"] as? String, GPULimit.daemonLabel)
+        XCTAssertEqual(plist?["RunAtLoad"] as? Bool, true)
+        XCTAssertEqual(plist?["ProgramArguments"] as? [String], ["/usr/sbin/sysctl", "iogpu.wired_limit_mb=40960"])
+    }
+
+    func testPlistPassesPlutilLint() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("x.plist")
+        try GPULimit.daemonPlist(mb: 8192).write(to: file, atomically: true, encoding: .utf8)
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/plutil")
+        p.arguments = ["-lint", file.path]
+        try p.run(); p.waitUntilExit()
+        XCTAssertEqual(p.terminationStatus, 0)
+    }
+
+    func testPersistScriptRoundTripsAndHasNoQuotes() throws {
+        let script = GPULimit.persistScript(mb: 24576)
+        XCTAssertFalse(script.contains("\""), "a quote would break the AppleScript string")
+        XCTAssertFalse(script.contains("\\"))
+        // The base64 argument decodes back to the plist.
+        let b64 = script.split(separator: " ")[1]
+        let decoded = String(data: Data(base64Encoded: String(b64))!, encoding: .utf8)
+        XCTAssertEqual(decoded, GPULimit.daemonPlist(mb: 24576))
+        XCTAssertTrue(script.contains("launchctl bootstrap system /Library/LaunchDaemons/com.mlxplayer.gpulimit.plist"))
+    }
+
+    func testRemoveScriptResetsToDefault() {
+        let s = GPULimit.removeScript()
+        XCTAssertFalse(s.contains("\""))
+        XCTAssertTrue(s.contains("rm -f /Library/LaunchDaemons/com.mlxplayer.gpulimit.plist"))
+        XCTAssertTrue(s.hasSuffix("iogpu.wired_limit_mb=0"))
+    }
+}

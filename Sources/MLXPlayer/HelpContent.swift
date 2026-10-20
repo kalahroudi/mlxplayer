@@ -35,6 +35,7 @@ enum HelpContent {
     static let memory: Entries = [
         ("Pressure", "macOS's own health signal for memory: Normal, Warning, High, Critical. The app reacts at each level."),
         ("GPU memory limit", "The most unified memory the GPU may wire. A model bigger than this cannot load. Apply raises it until restart."),
+        ("Keep after restart", "macOS forgets the GPU limit on reboot. This installs a small launch daemon (com.mlxplayer.gpulimit) that sets it at every boot. Reset removes it."),
         ("Keep free", "Memory the app leaves for macOS and other apps when it decides what fits."),
         ("Profiles", "Performance keeps the model loaded and the cache large. Saver unloads sooner and trims more."),
         ("Swap", "Memory pushed to disk. Heavy swap makes everything slow."),
