@@ -148,4 +148,4 @@ Not built:
 
 ## License
 
-No license file yet. Add one before accepting contributions.
+Apache License 2.0. See [LICENSE](LICENSE).
