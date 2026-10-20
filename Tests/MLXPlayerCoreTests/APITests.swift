@@ -53,6 +53,18 @@ final class APITests: XCTestCase {
         XCTAssertTrue(store.csv(.week, now: now).hasPrefix("timestamp,model"))
     }
 
+    func testUsageStoreDropsExpiredRowsFromDisk() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("usage-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let old = UsageRecord(timestamp: Date().addingTimeInterval(-40 * 86_400), model: "m", client: "c", tokensIn: 1, tokensOut: 1, durationMs: 10, firstTokenMs: 1, status: 200)
+        let fresh = UsageRecord(timestamp: Date(), model: "m", client: "c", tokensIn: 1, tokensOut: 1, durationMs: 10, firstTokenMs: 1, status: 200)
+        let seed = UsageStore(url: url)
+        seed.record(old); seed.record(fresh)
+        XCTAssertEqual(try String(contentsOf: url).split(separator: "\n").count, 2)
+        _ = UsageStore(url: url)
+        XCTAssertEqual(try String(contentsOf: url).split(separator: "\n").count, 1, "expired row should be removed from the file")
+    }
+
     func testUsageStorePersists() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
         UsageStore(url: url).record(UsageRecord(model: "m", client: "c", tokensIn: 1, tokensOut: 2, durationMs: 3))

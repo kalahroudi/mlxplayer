@@ -85,14 +85,39 @@ public final class UsageStore: @unchecked Sendable {
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86_400)
-        records = text.split(separator: "\n").compactMap { line in
+        let lines = text.split(separator: "\n")
+        records = lines.compactMap { line in
             try? dec.decode(UsageRecord.self, from: Data(line.utf8))
         }.filter { $0.timestamp >= cutoff }
+        // The file is append-only, so drop expired rows from disk too, otherwise it grows forever.
+        if records.count < lines.count { compact() }
     }
 
-    public func record(_ r: UsageRecord) {
-        lock.withLock { records.append(r) }
+    /// Rewrites the log with only the retained records.
+    func compact() {
         guard let url else { return }
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        let rows = lock.withLock { records }
+        var out = Data()
+        for r in rows { if let d = try? enc.encode(r) { out.append(d); out.append(0x0A) } }
+        try? out.write(to: url, options: .atomic)
+    }
+
+    private var appendsSinceCompact = 0
+
+    public func record(_ r: UsageRecord) {
+        let due: Bool = lock.withLock {
+            records.append(r)
+            appendsSinceCompact += 1
+            guard appendsSinceCompact >= 1000 else { return false }
+            appendsSinceCompact = 0
+            let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86_400)
+            records.removeAll { $0.timestamp < cutoff }
+            return true
+        }
+        guard let url else { return }
+        if due { compact(); return }  // the rewrite already includes this record
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
         guard var line = try? enc.encode(r) else { return }
