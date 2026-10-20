@@ -33,9 +33,11 @@ public final class LazyProxy: @unchecked Sendable {
     public var onActiveChanged: (@Sendable (_ active: Int) -> Void)?
 
     public init(host: String = "127.0.0.1", port: Int) {
+        self.host = host
         listener = TCPListener(host: host, port: port)
     }
 
+    public let host: String
     public var port: Int { listener.port }
     public var backendPort: Int { get { lock.withLock { _backendPort } } set { lock.withLock { _backendPort = newValue } } }
     /// 0 disables the limit.
@@ -128,9 +130,14 @@ public final class LazyProxy: @unchecked Sendable {
         // Ask for usage in streams so tokens can be metered.
         var body = req.body
         let streaming = isModelCall && APIMeter.isStreaming(body: body)
-        if streaming, var obj = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any], obj["stream_options"] == nil {
-            obj["stream_options"] = ["include_usage": true]
-            if let patched = try? JSONSerialization.data(withJSONObject: obj) { body = patched }
+        // Clients send names like "default" or a model that is not loaded; mlx-lm would try to fetch that name from
+        // Hugging Face and fail, so always ask for what is actually loaded.
+        let served = servedModel
+        if isModelCall, var obj = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] {
+            var changed = false
+            if !served.isEmpty, let m = obj["model"] as? String, m != served { obj["model"] = served; changed = true }
+            if streaming, obj["stream_options"] == nil { obj["stream_options"] = ["include_usage": true]; changed = true }
+            if changed, let patched = try? JSONSerialization.data(withJSONObject: obj) { body = patched }
         }
         guard TCP.writeAll(backend, head.serialized(body: body)) else {
             respond(client, 502, "Bad Gateway", APIMeter.openAIError(message: "Lost the model server.", code: "backend_unreachable"))

@@ -6,7 +6,7 @@ Status as of v0.1.3. Items are ordered by value to users.
 
 - [ ] Switch models while a server is loaded under real load (code handles it: waits for running requests, restores the previous model on failure; only compile-checked in the UI so far)
 - [ ] Developer ID signing and notarization (workflow is written, no certificate has run it; `scripts/verify-release.sh vX.Y.Z` checks the result)
-- [ ] Server on the local network (Server > Network > "Local network", host 0.0.0.0): never tested from another device. Check that a phone or second Mac reaches `http://<this-mac-ip>:8080/v1` with and without a loaded model, streaming works, the macOS firewall prompt and CORS behave, and nothing is exposed while set to "This Mac only"
+- [ ] Server on the local network: works over this Mac's own LAN address (endpoint, streaming, CORS, backend not exposed). Still to check from a real second device, and with the macOS firewall turned on (it is off on the dev Mac)
 - [ ] GPU wired limit "Keep after restart" launch daemon (the privileged install has not been run)
 
 ## Build next

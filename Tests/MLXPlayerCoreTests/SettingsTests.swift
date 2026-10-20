@@ -13,6 +13,13 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(args[args.firstIndex(of: "--port")! + 1], "8080")
     }
 
+    func testBackendStaysOnLoopbackWhenSharedOnTheNetwork() {
+        var s = ServerSettings(modelID: "m")
+        s.host = "0.0.0.0"
+        let args = s.arguments()
+        XCTAssertEqual(args[args.firstIndex(of: "--host")! + 1], "127.0.0.1")
+    }
+
     func testUnsupportedFlagsAreDropped() {
         var s = ServerSettings(modelID: "m/x")
         s.draftModel = "m/draft"

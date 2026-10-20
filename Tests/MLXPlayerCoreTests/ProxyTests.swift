@@ -82,6 +82,15 @@ final class ProxyTests: XCTestCase {
         XCTAssertEqual(c.records[0].client, "Claude Code")
     }
 
+    func testUnknownModelNameIsReplacedWithTheLoadedOne() async throws {
+        let bp = try freePort()
+        try await startBackend(port: bp)
+        let port = try makeProxy(counter: Counter(), backendPort: bp)
+        let (status, body) = try await post(port, body: #"{"model":"default","messages":[{"role":"user","content":"hi"}]}"#)
+        XCTAssertEqual(status, 200)
+        XCTAssertTrue(body.contains(#""model": "fake""#), body)
+    }
+
     func testStreamsSSEAndInjectsUsageOption() async throws {
         let bp = try freePort()
         try await startBackend(port: bp)

@@ -23,7 +23,7 @@ class H(BaseHTTPRequestHandler):
                 self.wfile.write(b'data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":5}}\n\n')
             self.wfile.write(b"data: [DONE]\n\n")
         else:
-            body = json.dumps({"choices": [{"message": {"content": "hello"}}],
+            body = json.dumps({"model": req.get("model"), "choices": [{"message": {"content": "hello"}}],
                                "usage": {"prompt_tokens": 3, "completion_tokens": 2}}).encode()
             self.send_response(200); self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)

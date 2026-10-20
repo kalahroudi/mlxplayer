@@ -337,7 +337,7 @@ final class AppModel {
 
     private func startProxy() {
         proxy?.stop()
-        let p = LazyProxy(host: "127.0.0.1", port: draft.port > 0 ? draft.port : 8080)
+        let p = LazyProxy(host: draft.host, port: draft.port > 0 ? draft.port : 8080)
         p.contextLimit = effectiveContextLimit
         p.servedModel = app.lastModelID ?? ""
         p.isBackendRunning = { [flag = runningFlag] in flag.value }
@@ -413,7 +413,9 @@ final class AppModel {
         hardware.availableBytes = HardwareProbe.availableMemory()
         if app.autoReduceContext { settings = fitToAvailableMemory(settings, meta: meta) }
 
-        if proxy == nil || proxy?.port != settings.port { draft.port = settings.port; startProxy() }
+        if proxy == nil || proxy?.port != settings.port || proxy?.host != settings.host {
+            draft.port = settings.port; draft.host = settings.host; startProxy()
+        }
         guard let backendPort = TCP.firstFreePort(from: settings.port + 1) else {
             lastError = "No free port near \(settings.port). Pick another in Server → Network."
             return

@@ -52,7 +52,9 @@ public struct ServerSettings: Codable, Equatable, Sendable {
         }
 
         add("--model", modelID)
-        add("--host", host)
+        // The server itself always stays on loopback. `host` is what the proxy listens on, and the proxy is the
+        // only thing that should ever be reachable from the network (it enforces the context limit and meters use).
+        add("--host", "127.0.0.1")
         add("--port", String(portOverride ?? port))
         add("--temp", Self.number(temperature))
         add("--top-p", Self.number(topP))
