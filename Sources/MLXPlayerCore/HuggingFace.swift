@@ -55,6 +55,7 @@ public struct ModelFilter: Equatable, Sendable {
     public var capabilities: Set<Capability> = []
     public var families: Set<ModelFamily> = []
     public var variant: ModelVariant = .standard
+    public var format: ModelFormat = .mlx
     public var fitsMyMac = false
 
     public init() {}
@@ -62,6 +63,7 @@ public struct ModelFilter: Equatable, Sendable {
     public func apply(_ models: [ModelMetadata], advisor: Advisor?, task: AdvisorTask = .chat) -> [ModelMetadata] {
         models.filter { m in
             if m.variant != variant { return false }
+            if m.format != format { return false }
             if !sizes.isEmpty {
                 guard let b = m.totalParamsB, sizes.contains(where: { $0.contains(b) }) else { return false }
             }
@@ -81,10 +83,12 @@ public struct SearchQuery: Equatable, Sendable {
     public var publisher: String? = "mlx-community"
     public var sort: SearchSort = .downloads
     public var variant: ModelVariant = .standard
+    public var format: ModelFormat = .mlx
     public var limit = 50
 
     public init(text: String = "", publisher: String? = "mlx-community", sort: SearchSort = .downloads,
-                variant: ModelVariant = .standard, limit: Int = 50) {
+                variant: ModelVariant = .standard, format: ModelFormat = .mlx, limit: Int = 50) {
+        self.format = format
         self.text = text
         self.publisher = publisher
         self.sort = sort
@@ -95,12 +99,20 @@ public struct SearchQuery: Equatable, Sendable {
 
 public final class HuggingFaceClient: @unchecked Sendable {
     private let session: URLSession
-    private let token: String?
+    private let fixedToken: String?
+    private var token: String? { fixedToken ?? HFToken.current }
     private let base = URL(string: "https://huggingface.co")!
+    /// Search pages and repo details change slowly, so they are reused for a few minutes.
+    /// Retry, Refresh and saving a token call `invalidateCache()`.
+    private let pages = ResponseCache<SearchPage>(ttl: 300)
+    private let configs = ResponseCache<ModelConfig>(ttl: 3600)
+    private let sizes = ResponseCache<UInt64>(ttl: 3600)
+
+    public func invalidateCache() { pages.removeAll(); configs.removeAll(); sizes.removeAll() }
 
     public init(session: URLSession = .shared, token: String? = nil) {
         self.session = session
-        self.token = token
+        self.fixedToken = token
     }
 
     private func request(_ url: URL) -> URLRequest {
@@ -111,10 +123,20 @@ public final class HuggingFaceClient: @unchecked Sendable {
         return r
     }
 
-    public func search(_ q: SearchQuery) async throws -> [ModelMetadata] {
+    /// Fields requested from the Hub. The API rejects names outside its allowed list with HTTP 400
+    /// (it dropped `usedStorage`), so this list is pinned by a test.
+    static let expandFields = ["downloads", "likes", "lastModified", "tags", "safetensors", "pipeline_tag"]
+
+    /// One page of results plus the cursor URL for the next page, if there is one.
+    public struct SearchPage: Sendable {
+        public var models: [ModelMetadata]
+        public var next: URL?
+    }
+
+    static func searchURL(_ q: SearchQuery, base: URL) -> URL {
         var comps = URLComponents(url: base.appendingPathComponent("api/models"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
-            .init(name: "filter", value: "mlx"),
+            .init(name: "filter", value: q.format.hubFilter),
             .init(name: "sort", value: q.sort.apiValue),
             .init(name: "direction", value: "-1"),
             .init(name: "limit", value: String(q.limit)),
@@ -123,22 +145,48 @@ public final class HuggingFaceClient: @unchecked Sendable {
         var text = q.text
         switch q.variant {
         case .standard:
-            if let pub = q.publisher { items.append(.init(name: "author", value: pub)) }
+            // The mlx-community org only publishes MLX; other formats come from many authors.
+            if q.format == .mlx, let pub = q.publisher { items.append(.init(name: "author", value: pub)) }
         case .uncensored:
             text = (text + " uncensored").trimmingCharacters(in: .whitespaces)
         case .abliterated:
             text = (text + " abliterated").trimmingCharacters(in: .whitespaces)
         }
+        // Format tags also match speech, embedding and vision models, which mlx_lm.server cannot serve.
+        items.append(.init(name: "pipeline_tag", value: "text-generation"))
         if !text.isEmpty { items.append(.init(name: "search", value: text)) }
-        for field in ["downloads", "likes", "lastModified", "tags", "usedStorage", "pipeline_tag"] {
-            items.append(.init(name: "expand[]", value: field))
-        }
+        for field in expandFields { items.append(.init(name: "expand[]", value: field)) }
         comps.queryItems = items
-        let (data, resp) = try await session.data(for: request(comps.url!))
-        if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
-            throw HFError.http(http.statusCode)
+        return comps.url!
+    }
+
+    /// Fetches the first page, or the page behind `cursor` (the `next` of a previous page).
+    public func searchPage(_ q: SearchQuery, cursor: URL? = nil, refresh: Bool = false) async throws -> SearchPage {
+        let url = cursor ?? Self.searchURL(q, base: base)
+        if refresh { pages.removeAll() } else if let hit = pages.value(for: url.absoluteString) { return hit }
+        let (data, resp) = try await session.data(for: request(url))
+        guard let http = resp as? HTTPURLResponse else { return SearchPage(models: Self.parseSearch(data), next: nil) }
+        guard http.statusCode == 200 else {
+            let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            throw HFError.http(http.statusCode, detail)
         }
-        return Self.parseSearch(data)
+        let page = SearchPage(models: Self.parseSearch(data), next: Self.nextLink(http.value(forHTTPHeaderField: "Link")))
+        pages.store(page, for: url.absoluteString)
+        return page
+    }
+
+    public func search(_ q: SearchQuery) async throws -> [ModelMetadata] {
+        try await searchPage(q).models
+    }
+
+    /// Reads `<url>; rel="next"` from a Link header.
+    static func nextLink(_ header: String?) -> URL? {
+        guard let header else { return nil }
+        for part in header.split(separator: ",") where part.contains("rel=\"next\"") {
+            guard let l = part.firstIndex(of: "<"), let r = part.firstIndex(of: ">"), l < r else { continue }
+            return URL(string: String(part[part.index(after: l)..<r]))
+        }
+        return nil
     }
 
     static func parseSearch(_ data: Data) -> [ModelMetadata] {
@@ -160,10 +208,12 @@ public final class HuggingFaceClient: @unchecked Sendable {
     }
 
     public func config(for id: String) async -> ModelConfig? {
+        if let hit = configs.value(for: id) { return hit }
         let url = base.appendingPathComponent("\(id)/resolve/main/config.json")
         guard let (data, resp) = try? await session.data(for: request(url)),
-              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return ModelConfig.parse(data)
+              (resp as? HTTPURLResponse)?.statusCode == 200, let cfg = ModelConfig.parse(data) else { return nil }
+        configs.store(cfg, for: id)
+        return cfg
     }
 
     /// Fills in layers, KV heads and context from config.json for more accurate memory estimates.
@@ -183,6 +233,7 @@ public final class HuggingFaceClient: @unchecked Sendable {
 
     /// Total bytes of all files in a repo, for download progress.
     public func repoSize(_ id: String) async -> UInt64? {
+        if let hit = sizes.value(for: id) { return hit }
         let url = base.appendingPathComponent("api/models/\(id)/tree/main")
         guard let (data, _) = try? await session.data(for: request(url)),
               let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return nil }
@@ -191,15 +242,18 @@ public final class HuggingFaceClient: @unchecked Sendable {
             if let lfs = f["lfs"] as? [String: Any], let size = lfs["size"] as? Int { total += UInt64(size) }
             else if let size = f["size"] as? Int { total += UInt64(size) }
         }
+        if total > 0 { sizes.store(total, for: id) }
         return total > 0 ? total : nil
     }
 }
 
 public enum HFError: Error, LocalizedError {
-    case http(Int)
+    case http(Int, String? = nil)
     public var errorDescription: String? {
         switch self {
-        case .http(let c): return "Hugging Face returned HTTP \(c)."
+        case .http(let c, let detail):
+            let first = detail?.split(separator: "\n").first.map(String.init)
+            return "Hugging Face returned HTTP \(c)." + (first.map { " \($0)" } ?? "")
         }
     }
 }

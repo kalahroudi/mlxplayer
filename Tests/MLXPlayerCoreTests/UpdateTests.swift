@@ -84,3 +84,48 @@ final class UpdateTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: r.marker.path + ".failed"))
     }
 }
+
+final class ReleaseUpdateTests: XCTestCase {
+    func testVersionOrdering() {
+        XCTAssertTrue(Version.isNewer("0.2.0", than: "0.1.9"))
+        XCTAssertTrue(Version.isNewer("v1.0.0", than: "0.9.9"))
+        XCTAssertTrue(Version.isNewer("0.10.0", than: "0.9.0"), "numeric, not alphabetic")
+        XCTAssertTrue(Version.isNewer("1.0.1", than: "1.0"))
+        XCTAssertFalse(Version.isNewer("1.0.0", than: "1.0"))
+        XCTAssertFalse(Version.isNewer("0.1.0", than: "0.1.0"))
+        XCTAssertTrue(Version.isNewer("1.0.0", than: "1.0.0-rc.1"), "final beats release candidate")
+        XCTAssertFalse(Version.isNewer("1.0.0-rc.1", than: "1.0.0"))
+        XCTAssertTrue(Version.isNewer("1.0.0-rc.10", than: "1.0.0-rc.2"))
+        XCTAssertFalse(Version.isNewer("junk", than: "0.1.0"))
+        XCTAssertFalse(Version.isNewer("0.2.0", than: "junk"))
+    }
+
+    private let releaseJSON = """
+    {"tag_name":"v0.2.0","draft":false,"prerelease":false,
+     "body":"## What's new\\n- Overview screen\\n- Benchmark button\\n",
+     "assets":[
+       {"name":"MLX-Player-0.2.0.dmg","browser_download_url":"https://github.com/o/r/releases/download/v0.2.0/MLX-Player-0.2.0.dmg"},
+       {"name":"SHA256SUMS","browser_download_url":"https://github.com/o/r/releases/download/v0.2.0/SHA256SUMS"}]}
+    """
+
+    func testParseRelease() throws {
+        let r = try XCTUnwrap(UpdateChecker.parseRelease(Data(releaseJSON.utf8)))
+        XCTAssertEqual(r.tag, "v0.2.0"); XCTAssertEqual(r.version, "0.2.0")
+        XCTAssertEqual(r.dmgName, "MLX-Player-0.2.0.dmg")
+        XCTAssertEqual(r.checksumsURL?.lastPathComponent, "SHA256SUMS")
+        XCTAssertEqual(r.notes, ["What's new", "Overview screen", "Benchmark button"])
+    }
+
+    func testReleaseWithoutDmgOrAsDraftIsIgnored() {
+        XCTAssertNil(UpdateChecker.parseRelease(Data(#"{"tag_name":"v1","assets":[{"name":"src.zip","browser_download_url":"https://x/y"}]}"#.utf8)))
+        XCTAssertNil(UpdateChecker.parseRelease(Data(releaseJSON.replacingOccurrences(of: "\"draft\":false", with: "\"draft\":true").utf8)))
+        XCTAssertNil(UpdateChecker.parseRelease(Data("nope".utf8)))
+    }
+
+    func testChecksumLookup() {
+        let sums = "ABCDEF0123  MLX-Player-0.2.0.dmg\n9999  *other.dmg\n"
+        XCTAssertEqual(UpdateChecker.checksum(in: sums, for: "MLX-Player-0.2.0.dmg"), "abcdef0123")
+        XCTAssertEqual(UpdateChecker.checksum(in: sums, for: "other.dmg"), "9999")
+        XCTAssertNil(UpdateChecker.checksum(in: sums, for: "missing.dmg"))
+    }
+}

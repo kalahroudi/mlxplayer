@@ -100,6 +100,7 @@ public enum APIMeter {
     public static func clientName(userAgent: String?) -> String {
         let ua = (userAgent ?? "").lowercased()
         if ua.isEmpty { return "Unknown" }
+        if ua.contains("mlxplayer-benchmark") { return "Benchmark" }
         if ua.contains("claude") { return "Claude Code" }
         if ua.contains("cursor") { return "Cursor" }
         if ua.contains("open-webui") || ua.contains("open webui") { return "Open WebUI" }

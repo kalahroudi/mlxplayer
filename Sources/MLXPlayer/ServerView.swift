@@ -32,11 +32,24 @@ struct ServerView: View {
 
     // MARK: Header
 
+    private var benchmarkButton: some View {
+        Button { Task { await model.benchmark() } } label: {
+            if model.benchmarking != nil {
+                HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Measuring") }
+            } else {
+                IconLabel(title: "Benchmark", symbol: "speedometer")
+            }
+        }
+        .buttonStyle(.pill).disabled(model.benchmarking != nil)
+        .help("Measure real tokens per second with this model")
+    }
+
     private var header: some View {
         let name = model.draft.modelID.isEmpty ? "No model" : ModelMetadata.fromName(model.draft.modelID).displayName
         return PageHeader(title: "Server", subtitle: name) {
             HStack(spacing: 8) {
                 if model.isRunning {
+                    benchmarkButton
                     Button("Restart") { Task { await model.restartServer() } }.buttonStyle(.pill)
                     Button("Stop") { Task { await model.stopServer() } }.buttonStyle(.pill)
                 } else if model.serverState.isStarting {
@@ -46,6 +59,7 @@ struct ServerView: View {
                     Button("Start") { Task { await model.startServer() } }
                         .buttonStyle(.pillPrimary).disabled(model.draft.modelID.isEmpty)
                 }
+                HelpButton(title: "Server settings", entries: HelpContent.server)
             }
         }
     }
@@ -194,7 +208,7 @@ struct ServerView: View {
                     Button("Copy") { model.copy(model.draft.commandPreview(supported: model.supportedFlags, executable: exe)) }
                         .buttonStyle(.pill(height: 24))
                 case .log:
-                    CodeBlock(text: model.logLines.suffix(150).joined(separator: "\n"), height: 330)
+                    LogPane(lines: model.logLines, height: 330)
                 }
             }
         }

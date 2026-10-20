@@ -10,13 +10,45 @@ struct MemoryView: View {
         @Bindable var model = model
         ScreenFrame {
             PageHeader(title: "Memory", subtitle: "\(formatBytes(model.hardware.memoryBytes)) unified") {
+              HStack(spacing: 10) {
                 Segmented(options: [(AppSettings.Profile.performance, "Performance"), (.balanced, "Balanced"), (.saver, "Saver")],
                           selection: Binding(get: { model.app.profile }, set: { p in model.app.apply(profile: p) }))
+                HelpButton(title: "Memory and limits", entries: HelpContent.memory)
+              }
             }
         } content: {
             TabStrip(options: [(Tab.live, "Live & limits"), (.rules, "Loading & rules")], selection: $tab)
             if tab == .live { live } else { rules }
             Spacer(minLength: 0)
+        }
+    }
+
+    @State private var limitBusy = false
+    @State private var limitNote: String?
+    @State private var keepAfterRestart = GPULimit.persistedMB != nil
+    @State private var persistedMB = GPULimit.persistedMB
+
+    /// Asks macOS for admin rights and sets the limit; it lasts until restart.
+    private func applyLimit(_ mb: Int) {
+        limitBusy = true; limitNote = nil
+        Task {
+            do {
+                let total = model.hardware.memoryBytes
+                if mb == 0 {
+                    // Reset also stops keeping the limit; removing the daemon resets the value in one prompt.
+                    if persistedMB != nil { try await GPULimit.removePersistence() } else { try await GPULimit.apply(mb: 0, totalBytes: total) }
+                } else if keepAfterRestart {
+                    try await GPULimit.persist(mb: mb, totalBytes: total)
+                } else {
+                    try await GPULimit.apply(mb: mb, totalBytes: total)
+                    if persistedMB != nil { try await GPULimit.removePersistence(); try await GPULimit.apply(mb: mb, totalBytes: total) }
+                }
+                persistedMB = GPULimit.persistedMB
+                keepAfterRestart = persistedMB != nil
+                model.hardware = HardwareProbe.current()
+                limitNote = mb == 0 ? "Reset to default" : (persistedMB != nil ? "Applied and kept after restart" : "Applied until restart")
+            } catch { limitNote = error.localizedDescription }
+            limitBusy = false
         }
     }
 
@@ -37,20 +69,31 @@ struct MemoryView: View {
             HStack(alignment: .top, spacing: 14) {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
-                        CardTitle(text: "Pressure", trailing: "last 9 min")
-                        Sparkline(values: model.pressureHistory, color: pressureColor).frame(height: 90)
-                        CardTitle(text: "Speed", trailing: "t/s")
-                        Sparkline(values: model.speedHistory, color: .seriesTeal).frame(height: 60)
+                        CardTitle(text: "Memory used", trailing: "last \(Int(Double(AppModel.historyLength) * 1.5 / 60 + 0.5)) min")
+                        AreaChart(values: model.memoryHistory, color: pressureColor).frame(height: 110)
+                        CardTitle(text: "GPU memory", trailing: "of \(formatBytes(hw.gpuLimitBytes)) limit")
+                        AreaChart(values: model.vramHistory, color: .accentIndigo).frame(height: 110)
                     }
                 }
                 Card {
                     VStack(alignment: .leading, spacing: 8) {
                         CardTitle(text: "GPU memory limit", trailing: formatBytes(hw.gpuLimitBytes))
                         Text("macOS lets the GPU wire part of unified memory. Raise it in Terminal if a model is close.")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                        let mb = Int(Double(hw.memoryBytes) * 0.9 / 1_048_576)
+                            .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        let mb = GPULimit.suggestedMB(totalBytes: hw.memoryBytes)
                         CodeBlock(text: "sudo sysctl iogpu.wired_limit_mb=\(mb)", height: 44)
-                        Button("Copy") { model.copy("sudo sysctl iogpu.wired_limit_mb=\(mb)") }.buttonStyle(.pill)
+                        HStack {
+                            Button("Apply") { applyLimit(mb) }.buttonStyle(.pillPrimary).disabled(limitBusy)
+                            Button("Reset") { applyLimit(0) }.buttonStyle(.pill).disabled(limitBusy)
+                            Button("Copy") { model.copy("sudo sysctl iogpu.wired_limit_mb=\(mb)") }.buttonStyle(.pill)
+                        }
+                        Toggle(isOn: $keepAfterRestart) { Text("Keep after restart").font(.system(size: 12.5)) }
+                            .toggleStyle(.switch).controlSize(.small).tint(.accentIndigo)
+                            .help("Installs a small system service that sets the limit at every boot. Asks for your password.")
+                        if let persistedMB {
+                            Text("Kept: \(persistedMB / 1024) GB at every start").font(.system(size: 11.5)).foregroundStyle(Color.good)
+                        }
+                        if let limitNote { Text(limitNote).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
                         SettingRow(title: "Keep free") {
                             SliderField(value: $model.app.reserveGB, range: 2...32, step: 1, format: "%.0f GB")
                         }

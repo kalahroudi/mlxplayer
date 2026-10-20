@@ -112,6 +112,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var startServerAtLaunch = false
     public var launchAtLogin = false
 
+    /// Measured speeds by model id, from the Benchmark button.
+    public var benchmarks: [String: BenchmarkResult] = [:]
+
+    // Look
+    public enum Appearance: String, Codable, CaseIterable, Sendable { case system, light, dark }
+    public var appearance: Appearance = .system
+    /// Sidebar shows icons only.
+    public var sidebarCollapsed = false
+
     // On-demand loading
     public var onDemandLoading = true
     public var idleUnloadMinutes = 30

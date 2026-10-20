@@ -48,8 +48,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Ad-hoc sign, sandbox OFF (the app spawns processes). Replace "-" with a Developer ID for distribution.
-codesign --force --sign "${SIGN_IDENTITY:--}" "$APP/Contents/MacOS/mlxplayer-mcp"
-codesign --force --sign "${SIGN_IDENTITY:--}" "$APP"
+# Sandbox OFF (the app spawns processes). Ad-hoc signed by default. With SIGN_IDENTITY set to a
+# "Developer ID Application: ..." identity it is signed for distribution with the hardened runtime.
+if [ "${SIGN_IDENTITY:--}" = "-" ]; then
+  SIGN_FLAGS=(--force --sign -)
+else
+  SIGN_FLAGS=(--force --timestamp --options runtime --entitlements scripts/MLXPlayer.entitlements --sign "$SIGN_IDENTITY")
+fi
+codesign "${SIGN_FLAGS[@]}" "$APP/Contents/MacOS/mlxplayer-mcp"
+codesign "${SIGN_FLAGS[@]}" "$APP"
+codesign --verify --strict "$APP"
 
 echo "Built $APP"

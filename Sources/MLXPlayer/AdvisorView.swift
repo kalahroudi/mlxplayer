@@ -11,7 +11,9 @@ struct AdvisorView: View {
         @Bindable var model = model
         ScreenFrame {
             PageHeader(title: "Advisor",
-                       subtitle: "\(model.hardware.chip) · \(formatBytes(model.hardware.memoryBytes)) · \(formatBytes(model.advisor.budgetBytes)) usable")
+                       subtitle: "\(model.hardware.chip) · \(formatBytes(model.hardware.memoryBytes)) · \(formatBytes(model.advisor.budgetBytes)) usable") {
+                HelpButton(title: "Choosing a model", entries: HelpContent.advisor)
+            }
         } content: {
             Card {
                 VStack(alignment: .leading, spacing: 12) {

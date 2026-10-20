@@ -19,10 +19,22 @@ struct MainWindow: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .bottomTrailing) { ToastHost() }
+        .onChange(of: model.app.appearance, initial: true) { _, mode in Self.apply(mode) }
+    }
+
+    /// Applies the chosen look to every window and the menu bar popover.
+    static func apply(_ mode: AppSettings.Appearance) {
+        switch mode {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
     }
 
     @ViewBuilder private var content: some View {
         switch nav.screen {
+        case .overview: OverviewView()
         case .server: ServerView()
         case .library: LibraryView()
         case .discover: DiscoverView()
@@ -40,37 +52,66 @@ struct Sidebar: View {
     @Environment(Navigator.self) private var nav
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let collapsed = model.app.sidebarCollapsed
+        return VStack(alignment: collapsed ? .center : .leading, spacing: 2) {
             HStack(spacing: 8) {
-                AppMark(size: 26)
-                Text("MLX Player").font(.system(size: 14, weight: .semibold))
+                if collapsed {
+                    AppMark(size: 26)
+                } else {
+                    AppMark(size: 26)
+                    Text("MLX Player").font(.system(size: 14, weight: .semibold))
+                    Spacer(minLength: 0)
+                }
             }
-            .padding(.horizontal, 10).padding(.bottom, 14).padding(.top, 6)
+            .padding(.horizontal, collapsed ? 0 : 10).padding(.bottom, 14).padding(.top, 6)
 
             ForEach(Screen.allCases) { screen in
                 Button { nav.screen = screen } label: {
                     HStack(spacing: 10) {
                         Image(systemName: screen.symbol).font(.system(size: 14)).frame(width: 18)
                             .foregroundStyle(nav.screen == screen ? Color.accentIndigo : .secondary)
-                        Text(screen.title).lineLimit(1)
-                        Spacer()
-                        if screen == .library, !model.installed.isEmpty {
-                            Chip(text: "\(model.installed.count)")
+                        if !collapsed {
+                            Text(screen.title).lineLimit(1)
+                            Spacer()
+                            if screen == .library, !model.installed.isEmpty {
+                                Chip(text: "\(model.installed.count)")
+                            }
                         }
                     }
                     .font(.system(size: 13, weight: nav.screen == screen ? .semibold : .regular))
-                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .padding(.horizontal, collapsed ? 0 : 10).padding(.vertical, 7)
+                    .frame(maxWidth: .infinity)
                     .background(nav.screen == screen ? Color.primary.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(screen.title)
             }
             Spacer()
-            statusCard
+            if !collapsed { statusCard } else { StatusDot(color: model.isRunning ? .good : (model.serverState.isStarting ? .warn : .secondary)).padding(.bottom, 8) }
+            footer(collapsed)
         }
-        .padding(12)
-        .frame(width: 210)
+        .padding(collapsed ? 8 : 12)
+        .frame(width: collapsed ? 64 : 210)
         .background(Color.primary.opacity(0.025))
+        .animation(.easeOut(duration: 0.16), value: collapsed)
+    }
+
+    /// Collapse toggle and a quick light/dark switch.
+    private func footer(_ collapsed: Bool) -> some View {
+        let mode = model.app.appearance
+        let next: AppSettings.Appearance = mode == .system ? .light : (mode == .light ? .dark : .system)
+        let symbol = mode == .system ? "circle.lefthalf.filled" : (mode == .light ? "sun.max" : "moon")
+        return (collapsed ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 12))) {
+            Button { model.app.sidebarCollapsed.toggle() } label: {
+                Image(systemName: collapsed ? "sidebar.right" : "sidebar.left").font(.system(size: 14))
+            }.help(collapsed ? "Expand menu" : "Collapse menu")
+            Button { model.app.appearance = next } label: { Image(systemName: symbol).font(.system(size: 14)) }
+                .help("Appearance: \(mode.rawValue.capitalized)")
+            if !collapsed { Spacer() }
+        }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .padding(.horizontal, collapsed ? 0 : 6).padding(.top, 6)
     }
 
     private var statusCard: some View {

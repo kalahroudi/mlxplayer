@@ -10,15 +10,25 @@ browser, or see the published canvas: https://claude.ai/artifact/PtGiNC8E4Wk8ig7
 
 | Part | Status |
 |---|---|
-| `Sources/MLXPlayerCore` | Done. **42 tests pass** (`swift test`). |
+| `Sources/MLXPlayerCore` | Done. **92 tests pass** (plus 1 live test that is skipped unless `MLX_LIVE_MODEL` is set) (`swift test`). |
 | `Sources/mlxplayer-mcp` | Done. Verified end to end against the running app (get_status, start_server, stop_server). |
 | `Sources/MLXPlayer` | Compiles. App entry, popover, sidebar shell and all screens written (Setup, Discover, Library, Server, Advisor, Memory, Usage, Logs, Settings). |
 | `scripts/bundle.sh` | Builds `dist/MLX Player.app` (Info.plist, LSUIElement, macOS 14, icon, mcp copied, ad-hoc signed, sandbox off). |
-| Visual pass | **Not done.** Layouts have not been compared with `design/` on screen yet; check each screen at 1240x820 for clipping and scrolling. |
+| Visual pass | Done for Overview, Discover, Library, Server, Memory, Usage, Logs, Settings, Advisor via `MLXPlayer --snapshot DIR [dark] [collapsed] [gguf] [toast] [screen]` (renders the real window to PNG). Compare against `design/` still manual. |
 | Untested on hardware | First-run installer from the UI, downloads from the UI, real memory-pressure responses, notarization. |
 
 The macOS target is only declared on macOS (`#if os(macOS)` in `Package.swift`), so Linux CI still builds the core.
 **The first job on a Mac is `swift build` and fixing compile errors in `Sources/MLXPlayer`.**
+
+## Added since the first handover
+
+- **Overview** screen (landing page): memory, GPU, VRAM (GPU memory vs GPU wired limit) and CPU gauges with history, memory map (model / wired / apps / compressed / cached / free, with the GPU limit marked), per-core CPU bars (E and P cores), health. Core: `SystemSampler` (host_processor_info, vm_statistics64, IOAccelerator `PerformanceStatistics`).
+- **Discover**: full-width toolbar, filter popovers with Select all / Clear, format filter (MLX, GGUF, Safetensors, GPTQ, AWQ, ONNX, Core ML; only MLX can be downloaded, others show "Other runtime"), language models only (`pipeline_tag=text-generation`), cursor paging via the Hub `Link` header, skeleton loading, detail overlay, cached results (`ResponseCache`, 5 min; Refresh/Retry/token change invalidate).
+- **Hub API gotcha**: `expand[]` accepts only a fixed field list (no `usedStorage`); `HFSearchTests` pins it. A bad field gives HTTP 400.
+- **Library**: search, select all, bulk delete, typed-name confirmation (`TypedConfirmPanel`) in a right overlay.
+- **UI kit** (`Overlay.swift`, `Toasts.swift`, `HelpContent.swift`): `sideOverlay`, `CopyIcon`, `HelpButton`, `SkeletonRows`, `FilterMenu`, `ChoiceMenu`, `LogPane`, toasts for background results. Help text for each screen lives in `HelpContent`.
+- **Sidebar** collapses to icons; **appearance** System / Light / Dark (Settings and sidebar footer).
+- **HF token** in Keychain (`HFToken`), used by search, downloads and the server. **GPU limit** Apply/Reset via the macOS admin prompt (`GPULimit`, lasts until restart).
 
 ## Architecture
 
@@ -82,13 +92,9 @@ Design rules the user set (keep them):
 - **KV cache quantization**: `--kv-bits` exists (also `--kv-group-size`, `--quantized-kv-start`). Exposed as Server > KV cache. mlx-lm serves one request at a time when it is set.
 - **Trim prompt cache** cannot be done live (no API). `AppModel.trimCacheWhenIdle` restarts with a smaller
   `--prompt-cache-bytes` once idle. The Memory screen should say so.
-- **Speed estimates** use memory bandwidth x efficiency (0.8 dense, 0.45 MoE). Calibrate against real runs, ideally with a
-  "benchmark this model" button.
+- **Speed estimates** use memory bandwidth x efficiency (0.8 dense, 0.45 MoE), now calibrated by the Benchmark button.
 - **Quality score** is a size/quantization heuristic, not a benchmark. Replace with a refreshable benchmark table.
-- **GPU wired limit** (`sudo sysctl iogpu.wired_limit_mb=N`) needs admin rights. Planned: `SMAppService` privileged helper
-  or an `osascript` admin prompt, plus an optional launch daemon to persist. Not implemented.
-- **Launch at login**: use `SMAppService.mainApp.register()` (setting exists, not wired).
-- **HF token**: store in Keychain, pass via `HF_TOKEN` env (not wired).
+- **GPU wired limit**: Apply/Reset use an `osascript` admin prompt and last until restart. A launch daemon to persist it is not built.
 - Model Advisor free-text uses keyword matching (`AdvisorTask.infer`), no AI.
 - The proxy forces `Connection: close` per exchange and reads Content-Length or chunked request bodies.
   Thread per connection; fine for local use.
@@ -99,7 +105,7 @@ Design rules the user set (keep them):
 
 ```
 swift build                 # core + mcp (+ app on macOS)
-swift test                  # 40 tests, includes proxy streaming against Tests/MLXPlayerCoreTests/Fixtures/fake_backend.py (needs python3)
+swift test                  # 92 tests, includes proxy streaming against Tests/MLXPlayerCoreTests/Fixtures/fake_backend.py (needs python3)
 swift run mlxplayer-mcp     # stdio MCP server
 ```
 
@@ -136,4 +142,7 @@ swift run mlxplayer-mcp     # stdio MCP server
 - Install: clone or fetch into `~/Library/Application Support/MLX Player/source`, run `scripts/bundle.sh` into `staging`, verify (codesign, files present, `--self-test` prints the commit), then `swap.sh` replaces the app after quit. The new app writes `update-ok` after 4 s; without it within 40 s the old app is restored and a notice is shown.
 - Needs git and the Xcode tools on the user's Mac, and a writable install location.
 - Tested for real against a branch: 0ff9953 to 69a0cc2 in about 40 s. For scripted runs: `open -n --env MLX_UPDATE_NOW=1 "MLX Player.app"`. Test builds use `MLX_BRANCH=<branch> scripts/bundle.sh`.
-- Not done: prebuilt releases from CI (would remove the toolchain requirement), Developer ID signing and notarization.
+- **Prebuilt releases**: the check first asks GitHub for the latest release with a `.dmg`; if its version is newer than the running one, the updater downloads it, verifies `SHA256SUMS`, unpacks, checks the signature and `--self-test`, then swaps with the same rollback script. No Xcode tools needed. With no release it falls back to the branch/source path above. The release path is covered by unit tests and a manual check of the mount/ditto/verify steps, but has **not** been run against a real published release.
+- **Release tooling**: `scripts/make-dmg.sh VERSION`, `scripts/notarize.sh DMG` (needs a notarytool keychain profile), `.github/workflows/release.yml` (tag `vX.Y.Z` builds, tests, signs and notarizes if the secrets `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD` exist, then publishes the DMG and `SHA256SUMS`). `SIGN_IDENTITY="Developer ID Application: ..." scripts/bundle.sh` signs with the hardened runtime. Signing and notarization have not been run (no Developer ID here).
+- **Benchmark**: Server and Library have a Benchmark button; it streams a fixed prompt, stores tokens/s per model in settings, and the Advisor uses measured speeds and a calibration factor (only from models with 3B+ active params; a 0.5B model measured 379 t/s on the M4 Max because small models are overhead bound, not bandwidth bound).
+- **GPU limit persistence**: Memory screen "Keep after restart" installs `/Library/LaunchDaemons/com.mlxplayer.gpulimit.plist` through the admin prompt; Reset removes it. Plist and script are unit tested; the privileged install itself has not been run.

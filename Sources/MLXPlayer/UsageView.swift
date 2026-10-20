@@ -13,16 +13,17 @@ struct UsageView: View {
                 HStack(spacing: 10) {
                     Segmented(options: UsageRange.allCases.map { ($0, $0.label) }, selection: $model.usageRange)
                     Button { exportCSV() } label: { IconLabel(title: "Export", symbol: "square.and.arrow.up") }.buttonStyle(.pill)
+                    HelpButton(title: "Reading usage", entries: HelpContent.usage)
                 }
             }
         } content: {
             HStack(spacing: 14) {
-                Stat(title: "Requests", value: formatCount(s.requests), detail: s.errors > 0 ? "\(s.errors) failed" : nil)
-                Stat(title: "Tokens in", value: formatCount(s.tokensIn))
-                Stat(title: "Tokens out", value: formatCount(s.tokensOut))
+                Stat(title: "Requests", value: formatCount(s.requests), detail: s.errors > 0 ? "\(s.errors) failed" : nil, minHeight: 92)
+                Stat(title: "Tokens in", value: formatCount(s.tokensIn), minHeight: 92)
+                Stat(title: "Tokens out", value: formatCount(s.tokensOut), minHeight: 92)
                 Stat(title: "Avg speed", value: String(format: "%.0f t/s", s.averageTokensPerSecond),
-                     detail: "peak \(Int(s.peakTokensPerSecond))")
-                Stat(title: "First token", value: s.medianFirstTokenMs.map { "\($0) ms" } ?? "–", detail: "median")
+                     detail: "peak \(Int(s.peakTokensPerSecond))", minHeight: 92)
+                Stat(title: "First token", value: s.medianFirstTokenMs.map { "\($0) ms" } ?? "–", detail: "median", minHeight: 92)
             }
             Card {
                 VStack(alignment: .leading, spacing: 10) {

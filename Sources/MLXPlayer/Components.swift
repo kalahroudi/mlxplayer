@@ -57,6 +57,8 @@ struct Stat: View {
     let title: String
     let value: String
     var detail: String?
+    /// Set when several stats sit in a row so they share one height.
+    var minHeight: CGFloat?
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 4) {
@@ -64,6 +66,7 @@ struct Stat: View {
                 Text(value).font(.system(size: 22, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 if let detail { Text(detail).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
             }
+            .frame(minHeight: minHeight, alignment: .topLeading)
         }
     }
 }

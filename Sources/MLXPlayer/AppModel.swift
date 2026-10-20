@@ -49,6 +49,8 @@ final class AppModel {
     var activeRequests = 0
     var proxyError: String?
     var lastError: String?
+    /// Background results shown as toasts. Newest last; each removes itself after a few seconds.
+    private(set) var toasts: [Toast] = []
     var uptime: TimeInterval = 0
 
     // MARK: Live stats
@@ -60,6 +62,14 @@ final class AppModel {
     var swapBytes: UInt64 = 0
     var pressureHistory: [Double] = []
     var speedHistory: [Double] = []
+    /// Latest whole-machine reading and short histories (0...1) for the Overview charts, one point per tick.
+    var system = SystemSnapshot()
+    var cpuHistory: [Double] = []
+    var gpuHistory: [Double] = []
+    var memoryHistory: [Double] = []
+    var vramHistory: [Double] = []
+    @ObservationIgnored private let sampler = SystemSampler()
+    static let historyLength = 90
     var memoryEvents: [(time: Date, text: String)] = []
     private var pressureCapActive = false
 
@@ -74,6 +84,9 @@ final class AppModel {
     var publisher: String? = "mlx-community"
     var results: [ModelMetadata] = []
     var searching = false
+    var loadingMore = false
+    private(set) var searchCursor: URL?
+    var hasMoreResults: Bool { searchCursor != nil }
     var searchError: String?
 
     // MARK: Advisor
@@ -146,10 +159,27 @@ final class AppModel {
         installedVersion = try? await installer.installedVersion()
     }
 
+    func notify(_ kind: Toast.Kind, _ title: String, detail: String? = nil, action: String? = nil, screen: Screen? = nil) {
+        let toast = Toast(kind: kind, title: title, detail: detail, actionTitle: action, screen: screen)
+        toasts.append(toast)
+        if toasts.count > 4 { toasts.removeFirst(toasts.count - 4) }
+        let seconds: UInt64 = kind == .error ? 12 : 6
+        Task { try? await Task.sleep(nanoseconds: seconds * 1_000_000_000); dismiss(toast.id) }
+    }
+
+    func dismiss(_ id: UUID) { toasts.removeAll { $0.id == id } }
+
     private func handle(state: ServerState) {
+        let previous = serverState
         serverState = state
+        if state == .running, previous != .running {
+            notify(.success, "Model loaded", detail: activeModelID.map { ModelMetadata.fromName($0).displayName }, action: "Open server", screen: .server)
+        }
         runningFlag.value = (state == .running)
-        if case .failed(let message) = state { lastError = message }
+        if case .failed(let message) = state {
+            lastError = message
+            notify(.error, "Model failed to start", detail: message, action: "Show logs", screen: .logs)
+        }
         if state == .stopped || state == .stopping { uptime = 0 }
     }
 
@@ -158,7 +188,13 @@ final class AppModel {
     var isRunning: Bool { serverState == .running }
     var publicPort: Int { draft.port }
     var endpoint: String { "http://\(draft.host == "0.0.0.0" ? "127.0.0.1" : draft.host):\(draft.port)/v1" }
-    var advisor: Advisor { Advisor(hardware: hardware, reserveBytes: UInt64(app.reserveGB * 1_073_741_824)) }
+    var advisor: Advisor {
+        var a = Advisor(hardware: hardware, reserveBytes: UInt64(app.reserveGB * 1_073_741_824))
+        let here = app.benchmarks.values.filter { $0.chip == hardware.chip }
+        a.measuredSpeeds = Dictionary(uniqueKeysWithValues: here.map { ($0.modelID, $0.decodeTokensPerSecond) })
+        a.speedCalibration = SpeedCalibration.factor(results: here, chip: hardware.chip, estimate: { a.rawTokensPerSecond($0) })
+        return a
+    }
 
     var effectiveContextLimit: Int {
         var limit = applied?.contextLength ?? draft.contextLength
@@ -294,6 +330,7 @@ final class AppModel {
     }
 
     private func record(_ r: UsageRecord) {
+        if r.client == "Benchmark" { return }
         usage.record(r)
         let gen = Double(r.durationMs - (r.firstTokenMs ?? 0)) / 1000
         if r.tokensOut > 0, gen > 0.05 { lastSpeed = (Double(r.tokensOut) / gen, Date()) }
@@ -496,6 +533,11 @@ final class AppModel {
             downloadsByID[p.modelID] = nil
             if p.finished { refreshInstalled() }
             if p.finished {
+                notify(.success, "Download complete", detail: ModelMetadata.fromName(p.modelID).displayName, action: "Open library", screen: .library)
+            } else if let why = p.failed, why != "Paused" {
+                notify(.error, "Download failed", detail: "\(ModelMetadata.fromName(p.modelID).displayName): \(why)", action: "Show logs", screen: .logs)
+            }
+            if p.finished {
                 Task { try? await Task.sleep(nanoseconds: 2_000_000_000); downloads[p.modelID] = nil }
             }
         }
@@ -521,18 +563,41 @@ final class AppModel {
 
     // MARK: Search
 
-    func search() async {
+    func search(refresh: Bool = false) async {
         searching = true
         searchError = nil
         defer { searching = false }
-        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, limit: 60)
-        if filter.variant != .standard { q.publisher = nil }
+        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, format: filter.format, limit: 30)
+        if filter.variant != .standard || filter.format != .mlx { q.publisher = nil }
         do {
-            results = try await hf.search(q)
+            let page = try await hf.searchPage(q, refresh: refresh)
+            results = page.models
+            searchCursor = page.next
         } catch {
-            searchError = "Couldn't reach Hugging Face. Check your connection."
+            searchError = Self.searchMessage(error)
             results = []
+            searchCursor = nil
         }
+    }
+
+    /// Fetches the next page and appends it. Pages are small, so the list never loads everything at once.
+    func loadMoreResults() async {
+        guard let cursor = searchCursor, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        do {
+            let page = try await hf.searchPage(SearchQuery(), cursor: cursor)
+            let known = Set(results.map(\.id))
+            results += page.models.filter { !known.contains($0.id) }
+            searchCursor = page.next
+        } catch {
+            searchError = Self.searchMessage(error)
+        }
+    }
+
+    private static func searchMessage(_ error: Error) -> String {
+        if error is URLError { return "Couldn't reach Hugging Face. Check your connection." }
+        return error.localizedDescription
     }
 
     var filteredResults: [ModelMetadata] {
@@ -587,6 +652,7 @@ final class AppModel {
         if speedHistory.count > 40 { speedHistory.removeFirst() }
         hardware.availableBytes = HardwareProbe.availableMemory()
         swapBytes = HardwareProbe.swapUsedBytes()
+        recordSystemSample()
         Task {
             serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0
@@ -596,6 +662,23 @@ final class AppModel {
         if pressureHistory.count > 360 { pressureHistory.removeFirst() }
         idleCheck()
         updater.autoCheckIfDue(enabled: app.autoCheckUpdates)
+    }
+
+    func sampleSystem() { recordSystemSample() }
+
+    private func recordSystemSample() {
+        let snap = sampler.sample()
+        system = snap
+        func push(_ array: inout [Double], _ v: Double) {
+            array.append(min(max(v, 0), 1))
+            if array.count > Self.historyLength { array.removeFirst(array.count - Self.historyLength) }
+        }
+        push(&cpuHistory, snap.cpu)
+        push(&gpuHistory, snap.gpu ?? 0)
+        let total = Double(max(snap.memory.total, 1))
+        push(&memoryHistory, Double(snap.memory.used) / total)
+        let limit = Double(max(hardware.gpuLimitBytes, 1))
+        push(&vramHistory, Double(snap.gpuMemoryBytes ?? 0) / limit)
     }
 
     private func idleCheck() {
@@ -776,6 +859,32 @@ final class AppModel {
             return (200, ["deleted": model])
         default:
             return (404, ["error": "Unknown endpoint"])
+        }
+    }
+
+    // MARK: Benchmark
+
+    var benchmarking: String?
+
+    /// Loads the model if needed, streams one fixed prompt through the endpoint and stores the measured speed.
+    func benchmark(model id: String? = nil) async {
+        guard benchmarking == nil else { return }
+        guard let target = id ?? activeModelID ?? app.lastModelID else { notify(.error, "Pick a model first"); return }
+        benchmarking = target
+        defer { benchmarking = nil }
+        if !(isRunning && activeModelID == target) {
+            await startServer(model: target)
+            guard isRunning, activeModelID == target else { return }
+        }
+        do {
+            let url = URL(string: endpoint)!
+            let result = try await SpeedBenchmark.run(endpoint: url, model: target, chip: hardware.chip)
+            app.benchmarks[target] = result
+            notify(.success, "\(Int(result.decodeTokensPerSecond)) tokens/s",
+                   detail: "\(ModelMetadata.fromName(target).displayName) · first token \(result.firstTokenMs) ms",
+                   action: "Library", screen: .library)
+        } catch {
+            notify(.error, "Benchmark failed", detail: error.localizedDescription, action: "Show logs", screen: .logs)
         }
     }
 

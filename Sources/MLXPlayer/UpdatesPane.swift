@@ -13,7 +13,7 @@ struct UpdatesPane: View {
                     SettingRow(title: "Installed", detail: u.build.isDirty ? "Built with local changes" : nil) {
                         Text("\(u.build.version) · \(u.build.shortCommit)").font(.system(size: 12.5, design: .monospaced))
                     }
-                    SettingRow(title: "Source", detail: "Updates come from this branch") {
+                    SettingRow(title: "Source", detail: "Prebuilt releases first, then this branch") {
                         Text("\(u.build.repo) · \(u.build.branch)").font(.system(size: 12.5, design: .monospaced))
                     }
                     ToggleRow(title: "Check daily", detail: "One small request to GitHub", isOn: $model.app.autoCheckUpdates)
@@ -22,7 +22,7 @@ struct UpdatesPane: View {
                             if u.busy { ProgressView().controlSize(.small) }
                             Text(statusText(u)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(statusColor(u))
                             if let info = u.available {
-                                Button { Task { await u.install() } } label: { Text("Update to \(info.shortSha)") }
+                                Button { Task { await u.install() } } label: { Text("Update to \(info.label)") }
                                     .buttonStyle(.pillPrimary).disabled(u.busy)
                             }
                             Button("Check") { Task { await u.check() } }.buttonStyle(.pill).disabled(u.busy)
@@ -38,7 +38,7 @@ struct UpdatesPane: View {
             if let info = u.available, !info.summaries.isEmpty {
                 Card {
                     VStack(alignment: .leading, spacing: 5) {
-                        CardTitle(text: "What's new", trailing: "\(info.aheadBy) commits")
+                        CardTitle(text: "What's new", trailing: info.release == nil ? "\(info.aheadBy) commits" : "Prebuilt release")
                         ForEach(Array(info.summaries.reversed().enumerated()), id: \.offset) { _, line in
                             Text(line).font(.system(size: 12)).lineLimit(1)
                         }
@@ -47,7 +47,7 @@ struct UpdatesPane: View {
                 .frame(maxWidth: 700)
             }
             if !u.log.isEmpty {
-                CodeBlock(text: u.log.suffix(40).joined(separator: "\n"), height: 150).frame(maxWidth: 700)
+                LogPane(lines: u.log, height: 170).frame(maxWidth: 700)
             }
         }
     }

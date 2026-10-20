@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(Navigator.self) private var nav
     private var tab: Binding<Tab> { Binding(get: { nav.settingsTab }, set: { nav.settingsTab = $0 }) }
     @State private var installNote: String?
+    @State private var tokenDraft = ""
+    @State private var tokenSaved = HFToken.isSaved
 
     private let tools: [(String, String)] = [
         ("get_hardware", "Chip, memory, limits"), ("search_models", "Search Hugging Face"),
@@ -19,7 +21,7 @@ struct SettingsView: View {
 
     var body: some View {
         ScreenFrame {
-            PageHeader(title: "Settings")
+            PageHeader(title: "Settings") { HelpButton(title: "Settings", entries: HelpContent.settings) }
         } content: {
             TabStrip(options: [(Tab.general, "General"), (.agents, "Agents (MCP)"), (.mlx, "mlx-lm"), (.updates, "Updates")],
                      selection: tab)
@@ -44,6 +46,10 @@ struct SettingsView: View {
                         Text("Icon only").tag(AppSettings.MenuBarDisplay.iconOnly)
                     }.labelsHidden().frame(width: 120)
                 }
+                SettingRow(title: "Appearance") {
+                    Segmented(options: [(AppSettings.Appearance.system, "System"), (.light, "Light"), (.dark, "Dark")],
+                              selection: $model.app.appearance)
+                }
                 ToggleRow(title: "Open at login", isOn: Binding(get: { model.app.launchAtLogin }, set: { on in
                     model.app.launchAtLogin = on
                     do { if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } }
@@ -51,9 +57,19 @@ struct SettingsView: View {
                 }))
                 ToggleRow(title: "Start server at launch", isOn: $model.app.startServerAtLaunch)
                 ToggleRow(title: "Lighter on battery", isOn: $model.app.lighterOnBattery)
+                SettingRow(title: "Hugging Face token", detail: tokenSaved ? "Saved in Keychain" : "For gated models") {
+                    HStack(spacing: 8) {
+                        SecureField("hf_…", text: $tokenDraft).textFieldStyle(.roundedBorder).frame(width: 150)
+                        Button("Save") { HFToken.save(tokenDraft); model.hf.invalidateCache(); tokenDraft = ""; tokenSaved = HFToken.isSaved }
+                            .buttonStyle(.pill).disabled(tokenDraft.isEmpty)
+                        if tokenSaved {
+                            Button("Remove") { HFToken.clear(); model.hf.invalidateCache(); tokenSaved = HFToken.isSaved }.buttonStyle(.pill)
+                        }
+                    }
+                }
             }
         }
-        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
     }
 
     private var agents: some View {
@@ -117,10 +133,10 @@ struct SettingsView: View {
                     }
                 }
                 SettingRow(title: "Setup") { Button("Run again") { model.showSetup = true }.buttonStyle(.pill) }
-                if !model.installLog.isEmpty { CodeBlock(text: model.installLog.suffix(30).joined(separator: "\n"), height: 120).padding(.top, 8) }
+                if !model.installLog.isEmpty { LogPane(lines: model.installLog, height: 160).padding(.top, 8) }
             }
         }
-        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
     }
 
     /// Runs `claude mcp add` through a login shell so PATH matches the user's terminal.
