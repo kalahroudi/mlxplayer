@@ -158,6 +158,7 @@ final class AppModel {
         if !isInstalled { showSetup = true }
         if let id = app.lastModelID { select(model: id) }
         startProxy()
+        refreshTailscale()
         startControlServer()
         startMemoryMonitor()
         observeSystemEvents()
@@ -213,9 +214,20 @@ final class AppModel {
     var isRunning: Bool { serverState == .running }
     var publicPort: Int { draft.port }
     /// What this app itself calls: always reachable from this Mac.
-    var endpoint: String { "http://\(draft.host == "0.0.0.0" ? "127.0.0.1" : draft.host):\(draft.port)/v1" }
+    var endpoint: String { "http://\(["0.0.0.0", Tailscale.hostSetting].contains(draft.host) ? "127.0.0.1" : draft.host):\(draft.port)/v1" }
+    /// Tailscale's view of this Mac, refreshed at launch, when the Tailscale option is chosen and on the timer while it is.
+    var tailscale: TailscaleInfo?
+    var tailscaleInstalled = Tailscale.isInstalled
+    func refreshTailscale() {
+        Task {
+            let info = await Task.detached { Tailscale.status() }.value
+            tailscaleInstalled = Tailscale.isInstalled
+            if info != tailscale { tailscale = info }
+        }
+    }
     /// What to hand to other apps and computers: this Mac's network address when the server is shared on the local network.
     var shareEndpoint: String {
+        if draft.host == Tailscale.hostSetting, let ts = tailscale { return "http://\(ts.host):\(draft.port)/v1" }
         guard draft.host == "0.0.0.0", let lan = LANAddress.current() else { return endpoint }
         return "http://\(lan):\(draft.port)/v1"
     }
@@ -343,7 +355,11 @@ final class AppModel {
 
     private func startProxy() {
         proxy?.stop()
-        let p = LazyProxy(host: draft.host, port: draft.port > 0 ? draft.port : 8080)
+        // "Tailscale" listens on every interface but only serves tailnet devices (and this Mac), so the LAN stays closed
+        // and it keeps working whenever Tailscale connects, without depending on the interface existing at launch.
+        let tailnetOnly = draft.host == Tailscale.hostSetting
+        let p = LazyProxy(host: tailnetOnly ? "0.0.0.0" : draft.host, port: draft.port > 0 ? draft.port : 8080)
+        if tailnetOnly { p.peerFilter = { Tailscale.isTailnetPeer($0) || $0 == 0x7F00_0001 } }
         p.contextLimit = effectiveContextLimit
         p.servedModel = app.lastModelID ?? ""
         p.isBackendRunning = { [flag = runningFlag] in flag.value }
@@ -754,6 +770,7 @@ final class AppModel {
         requestsToday = usage.summary(.today).requests
     }
 
+    private var tickCount = 0
     private func tick() {
         // Keep the last measured speed for a while after a reply ends, so the tile does not flash back to a dash.
         if let s = lastSpeed, Date().timeIntervalSince(s.at) < 300 { tokensPerSecond = s.value } else { tokensPerSecond = 0 }
@@ -762,6 +779,8 @@ final class AppModel {
         hardware.availableBytes = HardwareProbe.availableMemory()
         swapBytes = HardwareProbe.swapUsedBytes()
         recordSystemSample()
+        tickCount += 1
+        if draft.host == Tailscale.hostSetting, tailscale == nil || tickCount % 10 == 0 { refreshTailscale() }
         Task {
             serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0

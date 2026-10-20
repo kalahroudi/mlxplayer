@@ -120,7 +120,17 @@ struct ServerView: View {
             ToggleRow(title: "Trust remote code", isOn: $model.draft.trustRemoteCode)
         case .network:
             SettingRow(title: "Host") {
-                Dropdown(options: [("127.0.0.1", "This Mac only"), ("0.0.0.0", "Local network")], selection: $model.draft.host, width: 150)
+                Dropdown(options: [("127.0.0.1", "This Mac only"), ("0.0.0.0", "Local network")]
+                            + (model.tailscaleInstalled || model.draft.host == Tailscale.hostSetting ? [(Tailscale.hostSetting, "Tailscale")] : []),
+                         selection: $model.draft.host, width: 150)
+            }
+            if model.draft.host == Tailscale.hostSetting {
+                SettingRow(title: "Tailscale URL", detail: tailscaleNote) {
+                    HStack(spacing: 8) {
+                        Text(model.shareEndpoint).font(.system(size: 11.5, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+                        Button("Copy") { model.copy(model.shareEndpoint) }.buttonStyle(.pill).disabled(model.tailscale == nil)
+                    }
+                }
             }
             SettingRow(title: "Port") { NumberField(value: $model.draft.port) }
             SettingRow(title: "Allowed origins") { TextBox(placeholder: "*", text: $model.draft.allowedOrigins, width: 200) }
@@ -129,6 +139,12 @@ struct ServerView: View {
             }
             SettingRow(title: "Extra arguments") { TextBox(placeholder: "--flag value", text: $model.draft.extraArguments) }
         }
+    }
+
+    private var tailscaleNote: String {
+        guard model.tailscaleInstalled else { return "Tailscale is not installed on this Mac." }
+        guard let ts = model.tailscale else { return "Tailscale is not signed in." }
+        return ts.connected ? "Reachable from your other devices on the tailnet." : "Tailscale is off. Turn it on to use this URL."
     }
 
     private var contextOptions: [Int] {

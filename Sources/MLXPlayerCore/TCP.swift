@@ -110,6 +110,8 @@ public final class TCPListener: @unchecked Sendable {
     private let lock = NSLock()
     private var stopped = false
     public private(set) var port: Int = 0
+    /// When set, only peers whose IPv4 address (host byte order) passes are served; others are dropped on accept.
+    public var peerFilter: (@Sendable (UInt32) -> Bool)?
 
     public init(host: String, port: Int) {
         self.host = host
@@ -148,12 +150,22 @@ public final class TCPListener: @unchecked Sendable {
             while let self, !self.isStopped {
                 let client = accept(s, nil, nil)
                 if client < 0 { if self.isStopped { break }; continue }
+                if let allow = self.peerFilter, !allow(Self.peerAddress(client)) { TCP.close(client); continue }
                 TCP.ignoreSigPipe(client)
                 Thread.detachNewThread { handler(client) }
             }
         }
         thread.name = "tcp-listener-\(port)"
         thread.start()
+    }
+
+    private static func peerAddress(_ fd: Int32) -> UInt32 {
+        var addr = sockaddr_in()
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let ok = withUnsafeMutablePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getpeername(fd, $0, &len) }
+        }
+        return ok == 0 ? UInt32(bigEndian: addr.sin_addr.s_addr) : 0
     }
 
     private var isStopped: Bool { lock.withLock { stopped } }

@@ -38,6 +38,8 @@ public final class LazyProxy: @unchecked Sendable {
     }
 
     public let host: String
+    /// Restricts who may connect, by IPv4 address in host byte order. Set before `start()`.
+    public var peerFilter: (@Sendable (UInt32) -> Bool)? { get { listener.peerFilter } set { listener.peerFilter = newValue } }
     public var port: Int { listener.port }
     public var backendPort: Int { get { lock.withLock { _backendPort } } set { lock.withLock { _backendPort = newValue } } }
     /// 0 disables the limit.
