@@ -23,6 +23,24 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(args.contains("--temp"))
     }
 
+    /// Flags from `mlx_lm.server --help` on mlx-lm 0.32.2 (no --max-kv-size).
+    func testEveryEmittedFlagExistsInMLXLM() {
+        let real: Set<String> = ["--model", "--adapter-path", "--host", "--port", "--allowed-origins", "--draft-model",
+            "--num-draft-tokens", "--trust-remote-code", "--log-level", "--chat-template", "--use-default-chat-template",
+            "--temp", "--top-p", "--top-k", "--min-p", "--max-tokens", "--chat-template-args", "--decode-concurrency",
+            "--prompt-concurrency", "--prefill-step-size", "--prompt-cache-size", "--prompt-cache-bytes", "--kv-bits",
+            "--kv-group-size", "--quantized-kv-start", "--pipeline", "--help"]
+        var s = ServerSettings(modelID: "m/x")
+        s.draftModel = "m/d"; s.chatTemplatePath = "/t"; s.chatTemplateArgs = "{}"; s.adapterPath = "/a"
+        s.trustRemoteCode = true; s.minP = 0.1; s.kvBits = 8
+        let flags = s.arguments(supported: real).filter { $0.hasPrefix("--") }
+        XCTAssertFalse(flags.contains("--max-kv-size"))
+        XCTAssertTrue(flags.contains("--kv-bits"))
+        XCTAssertEqual(Set(flags).subtracting(real), [])
+        // Probed runs also pass --allowed-origins explicitly, hence the + 1.
+        XCTAssertEqual(flags.count, s.arguments().filter { $0.hasPrefix("--") }.count + 1, "nothing we emit is dropped")
+    }
+
     func testPortOverrideForProxy() {
         let s = ServerSettings(modelID: "m/x")
         XCTAssertEqual(s.arguments(portOverride: 8081)[s.arguments(portOverride: 8081).firstIndex(of: "--port")! + 1], "8081")

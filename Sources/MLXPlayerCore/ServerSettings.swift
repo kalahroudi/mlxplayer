@@ -13,6 +13,8 @@ public struct ServerSettings: Codable, Equatable, Sendable {
     public var prefillStepSize = 2048
     public var promptConcurrency = 8
     public var decodeConcurrency = 32
+    /// KV cache quantization (4 or 8). nil = full precision. mlx-lm serves one request at a time when set.
+    public var kvBits: Int?
 
     // Sampling defaults
     public var temperature = 0.6
@@ -63,6 +65,7 @@ public struct ServerSettings: Codable, Equatable, Sendable {
         if promptCacheEnabled {
             add("--prompt-cache-bytes", String(UInt64(promptCacheGB * 1_073_741_824)))
         }
+        if let bits = kvBits { add("--kv-bits", String(bits)) }
         if let draft = draftModel, !draft.isEmpty {
             add("--draft-model", draft)
             add("--num-draft-tokens", String(numDraftTokens))

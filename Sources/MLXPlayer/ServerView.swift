@@ -78,6 +78,13 @@ struct ServerView: View {
             SettingRow(title: "Cache size") {
                 SliderField(value: $model.draft.promptCacheGB, range: 1...64, step: 1, format: "%.0f GB")
             }
+            SettingRow(title: "KV cache", detail: model.draft.kvBits == nil ? nil : "One request at a time") {
+                Picker("", selection: $model.draft.kvBits) {
+                    Text("Full").tag(Int?.none)
+                    Text("8-bit").tag(Int?.some(8))
+                    Text("4-bit").tag(Int?.some(4))
+                }.labelsHidden().frame(width: 100)
+            }
             SettingRow(title: "Prefill step") { NumberField(value: $model.draft.prefillStepSize) }
             SettingRow(title: "Prompt concurrency") { NumberField(value: $model.draft.promptConcurrency) }
             SettingRow(title: "Decode concurrency") { NumberField(value: $model.draft.decodeConcurrency) }
@@ -144,7 +151,7 @@ struct ServerView: View {
         let meta = model.installed.first { $0.id == model.draft.modelID }?.meta ?? ModelMetadata.fromName(model.draft.modelID)
         let adv = model.advisor
         let weights = Double(adv.weightsBytes(meta))
-        let kv = meta.kvBytesPerToken() * Double(model.draft.contextLength)
+        let kv = meta.kvBytesPerToken(elementBytes: Double(model.draft.kvBits ?? 16) / 8) * Double(model.draft.contextLength)
         let cache = model.draft.promptCacheEnabled ? model.draft.promptCacheGB * 1_073_741_824 : 0
         let budget = Double(adv.budgetBytes)
         let used = weights + kv + cache

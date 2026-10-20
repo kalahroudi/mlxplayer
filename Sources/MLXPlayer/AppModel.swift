@@ -178,7 +178,7 @@ final class AppModel {
         if a.maxTokens != draft.maxTokens { out.append("max tokens") }
         if a.draftModel != draft.draftModel || a.numDraftTokens != draft.numDraftTokens { out.append("draft model") }
         if a.chatTemplateArgs != draft.chatTemplateArgs || a.chatTemplatePath != draft.chatTemplatePath { out.append("chat template") }
-        if a.promptCacheGB != draft.promptCacheGB || a.promptCacheEnabled != draft.promptCacheEnabled { out.append("prompt cache") }
+        if a.kvBits != draft.kvBits || a.promptCacheGB != draft.promptCacheGB || a.promptCacheEnabled != draft.promptCacheEnabled { out.append("prompt cache") }
         if a.prefillStepSize != draft.prefillStepSize || a.promptConcurrency != draft.promptConcurrency
             || a.decodeConcurrency != draft.decodeConcurrency { out.append("concurrency") }
         if a.adapterPath != draft.adapterPath || a.trustRemoteCode != draft.trustRemoteCode { out.append("model options") }
