@@ -4,9 +4,9 @@ import MarkdownUI
 import MLXPlayerCore
 
 /// A message in the quick-test conversation.
-struct ChatTurn: Identifiable, Equatable {
-    enum Role { case user, assistant }
-    let id = UUID()
+struct ChatTurn: Identifiable, Equatable, Codable {
+    enum Role: String, Codable { case user, assistant }
+    var id = UUID()
     let role: Role
     var text: String
     var failed = false
@@ -22,6 +22,27 @@ final class ChatModel {
     var tokensPerSecond: Double?
     var system = ""
     private var task: Task<Void, Never>?
+    private let file: URL?
+    /// Only the most recent turns are kept on disk, so the file stays small.
+    static let keepTurns = 100
+
+    init(file: URL? = nil) {
+        self.file = file
+        guard let file, let data = try? Data(contentsOf: file),
+              let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
+        turns = saved.turns.filter { !$0.failed }
+        system = saved.system
+    }
+
+    private struct Saved: Codable { var turns: [ChatTurn]; var system: String }
+
+    func save() {
+        guard let file else { return }
+        if turns.isEmpty && system.isEmpty { try? FileManager.default.removeItem(at: file); return }
+        let saved = Saved(turns: Array(turns.suffix(Self.keepTurns)), system: system)
+        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let data = try? JSONEncoder().encode(saved) { try? data.write(to: file, options: .atomic) }
+    }
 
     func send(model: AppModel) {
         let prompt = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -63,16 +84,17 @@ final class ChatModel {
             }
             _ = start
             self?.sending = false
+            self?.save()
         }
     }
 
-    func stop() { task?.cancel(); sending = false }
-    func clear() { stop(); turns = []; tokensPerSecond = nil }
+    func stop() { task?.cancel(); sending = false; save() }
+    func clear() { stop(); turns = []; tokensPerSecond = nil; save() }
 }
 
 struct ChatView: View {
     @Environment(AppModel.self) private var model
-    @State private var chat = ChatModel()
+    private var chat: ChatModel { model.chat }
     @FocusState private var focused: Bool
 
     private var modelName: String? { (model.activeModelID ?? model.app.lastModelID).map { ModelMetadata.fromName($0).displayName } }
@@ -136,7 +158,8 @@ struct ChatView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        @Bindable var chat = chat
+        return HStack(alignment: .bottom, spacing: 8) {
             TextField("Message", text: $chat.input, axis: .vertical)
                 .textFieldStyle(.plain).lineLimit(1...5)
                 .padding(.vertical, 8).padding(.horizontal, 10)
