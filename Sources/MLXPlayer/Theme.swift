@@ -267,7 +267,7 @@ func optionalBinding(_ source: Binding<String?>) -> Binding<String> {
 
 // MARK: - Code & bars
 
-/// Short commands and snippets. Wraps long lines instead of scrolling sideways.
+/// Short commands and snippets. Dark terminal look in both themes; wraps long lines instead of scrolling sideways.
 struct CodeBlock: View {
     let text: String
     var height: CGFloat?
@@ -275,14 +275,15 @@ struct CodeBlock: View {
         ScrollView(.vertical) {
             Text(text)
                 .font(.system(size: 11.5, design: .monospaced))
+                .foregroundStyle(Color.white.opacity(0.88))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
         }
         .frame(height: height)
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.08)))
+        .background(Color(red: 0.075, green: 0.08, blue: 0.095), in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.08)))
     }
 }
 

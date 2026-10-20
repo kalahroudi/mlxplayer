@@ -53,17 +53,17 @@ struct MemoryView: View {
             HStack(alignment: .top, spacing: 14) {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
-                        CardTitle(text: "Pressure", trailing: "last 9 min")
-                        Sparkline(values: model.pressureHistory, color: pressureColor).frame(height: 90)
-                        CardTitle(text: "Speed", trailing: "t/s")
-                        Sparkline(values: model.speedHistory, color: .seriesTeal).frame(height: 60)
+                        CardTitle(text: "Memory used", trailing: "last \(Int(Double(AppModel.historyLength) * 1.5 / 60 + 0.5)) min")
+                        AreaChart(values: model.memoryHistory, color: pressureColor).frame(height: 110)
+                        CardTitle(text: "GPU memory", trailing: "of \(formatBytes(hw.gpuLimitBytes)) limit")
+                        AreaChart(values: model.vramHistory, color: .accentIndigo).frame(height: 110)
                     }
                 }
                 Card {
                     VStack(alignment: .leading, spacing: 8) {
                         CardTitle(text: "GPU memory limit", trailing: formatBytes(hw.gpuLimitBytes))
                         Text("macOS lets the GPU wire part of unified memory. Raise it in Terminal if a model is close.")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                            .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         let mb = GPULimit.suggestedMB(totalBytes: hw.memoryBytes)
                         CodeBlock(text: "sudo sysctl iogpu.wired_limit_mb=\(mb)", height: 44)
                         HStack {
