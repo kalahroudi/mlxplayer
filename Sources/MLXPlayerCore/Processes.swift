@@ -27,8 +27,10 @@ public final class ManagedProcess: @unchecked Sendable {
     private let outPipe = Pipe()
     private var pending = Data()
     private let lock = NSLock()
-    private var exitContinuation: CheckedContinuation<Int32, Never>?
+    private var exitContinuations: [CheckedContinuation<Int32, Never>] = []
     private var exitCode: Int32?
+    private var recent: [String] = []
+    public private(set) var diedBySignal = false
     private let onLine: @Sendable (String) -> Void
 
     public init(executable: URL, arguments: [String], environment: [String: String],
@@ -64,10 +66,11 @@ public final class ManagedProcess: @unchecked Sendable {
                 self.flushPending()
                 self.lock.lock()
                 self.exitCode = p.terminationStatus
-                let cont = self.exitContinuation
-                self.exitContinuation = nil
+                self.diedBySignal = p.terminationReason == .uncaughtSignal
+                let waiters = self.exitContinuations
+                self.exitContinuations = []
                 self.lock.unlock()
-                cont?.resume(returning: p.terminationStatus)
+                waiters.forEach { $0.resume(returning: p.terminationStatus) }
             }
         }
         try process.run()
@@ -83,6 +86,7 @@ public final class ManagedProcess: @unchecked Sendable {
             if !lineData.isEmpty, let s = String(data: lineData, encoding: .utf8) { lines.append(s) }
         }
         lock.unlock()
+        lock.withLock { recent.append(contentsOf: lines); if recent.count > 40 { recent.removeFirst(recent.count - 40) } }
         lines.forEach(onLine)
     }
 
@@ -94,15 +98,32 @@ public final class ManagedProcess: @unchecked Sendable {
         if !rest.isEmpty, let s = String(data: rest, encoding: .utf8) { onLine(s) }
     }
 
-    /// Asks the process to quit, then kills it if it is still alive after `grace` seconds.
+    /// Asks the process to quit, then kills it and anything it spawned if it is still alive after `grace` seconds.
     public func terminate(grace: TimeInterval = 5) {
-        guard process.isRunning else { return }
-        process.terminate()
+        guard process.isRunning else { killDescendants(); return }
         let pid = process.processIdentifier
+        let children = ProcessTree.descendants(of: pid)
+        process.terminate()
         DispatchQueue.global().asyncAfter(deadline: .now() + grace) { [weak self] in
             if let self, self.process.isRunning { kill(pid, SIGKILL) }
+            for c in children where ProcessTree.isAlive(c) { kill(c, SIGKILL) }
         }
     }
+
+    /// Kills right now, without waiting. Used on app quit, where there is no time for a grace period.
+    public func killNow() {
+        let pid = process.processIdentifier
+        let children = ProcessTree.descendants(of: pid)
+        if process.isRunning { kill(pid, SIGKILL) }
+        for c in children { kill(c, SIGKILL) }
+    }
+
+    private func killDescendants() {
+        for c in ProcessTree.descendants(of: process.processIdentifier) { kill(c, SIGKILL) }
+    }
+
+    /// Last lines of output, for diagnosing a crash.
+    public var recentOutput: [String] { lock.withLock { recent } }
 
     public func waitUntilExit() async -> Int32 {
         await withCheckedContinuation { cont in
@@ -111,7 +132,7 @@ public final class ManagedProcess: @unchecked Sendable {
                 lock.unlock()
                 cont.resume(returning: code)
             } else {
-                exitContinuation = cont
+                exitContinuations.append(cont)
                 lock.unlock()
             }
         }

@@ -10,8 +10,7 @@ struct SetupView: View {
         VStack(spacing: 18) {
             AppMark(size: 64)
             Text("Set up MLX Player").font(.system(size: 24, weight: .bold))
-            Text(model.hardware.chip.isEmpty ? "" : "\(model.hardware.chip) · \(formatBytes(model.hardware.memoryBytes))")
-                .font(.system(size: 13)).foregroundStyle(.secondary)
+            detectedCard
 
             Card {
                 VStack(alignment: .leading, spacing: 12) {
@@ -47,6 +46,36 @@ struct SetupView: View {
         .onChange(of: model.isInstalled) { _, installed in
             if installed { Task { await model.runAdvisor() } }
         }
+    }
+
+    /// What the app found about this Mac, labelled so it is clear these are detected values.
+    private var detectedCard: some View {
+        let hw = model.hardware
+        return Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal").foregroundStyle(Color.accentIndigo)
+                    Label2("Detected on this Mac")
+                    Spacer()
+                    Text("Used to judge which models will run").font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                }
+                HStack(spacing: 0) {
+                    detected("Chip", hw.chip.isEmpty ? "Unknown" : hw.chip)
+                    detected("Memory", formatBytes(hw.memoryBytes))
+                    detected("GPU limit", formatBytes(hw.gpuLimitBytes))
+                    detected("Bandwidth", "\(Int(hw.bandwidthGBs)) GB/s" + (hw.bandwidthIsEstimate ? " est." : ""))
+                }
+            }
+        }
+        .frame(width: 520)
+    }
+
+    private func detected(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 10.5)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func stepRow(_ step: InstallStep) -> some View {

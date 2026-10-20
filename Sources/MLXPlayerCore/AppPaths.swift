@@ -27,6 +27,7 @@ public struct AppPaths: Sendable {
     public var venvPython: URL { venvBin.appendingPathComponent("python") }
     public var mlxServer: URL { venvBin.appendingPathComponent("mlx_lm.server") }
     public var settingsFile: URL { root.appendingPathComponent("settings.json") }
+    public var serverPidFile: URL { root.appendingPathComponent("server.pid") }
     public var usageFile: URL { root.appendingPathComponent("usage.jsonl") }
     public var controlFile: URL { root.appendingPathComponent("control.json") }
     public var logsDir: URL { root.appendingPathComponent("logs", isDirectory: true) }
