@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import MLXPlayerCore
 
-/// Developer tool: `MLXPlayer --snapshot DIR [dark] [screen]` renders screens of the real window to PNG files
+/// Developer tool: `MLXPlayer --snapshot DIR [dark] [agents] [screen]` renders screens of the real window to PNG files
 /// (no screen-recording permission needed) so layouts can be checked without clicking through the app.
 @MainActor
 enum Snapshot {
@@ -18,6 +18,7 @@ enum Snapshot {
         NSApp.setActivationPolicy(.accessory)
         let model = AppModel()
         let nav = Navigator()
+        if args.contains("agents") { nav.settingsTab = .agents }
         model.refreshInstalled()
         let wasCollapsed = model.app.sidebarCollapsed
         model.app.sidebarCollapsed = collapse
@@ -60,7 +61,7 @@ enum Snapshot {
             guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
             host.cacheDisplay(in: host.bounds, to: rep)
             if let png = rep.representation(using: .png, properties: [:]) {
-                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "")\(format.map { "-" + $0.rawValue } ?? "")\(args.contains("toast") ? "-toast" : "").png"))
+                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "")\(format.map { "-" + $0.rawValue } ?? "")\(args.contains("toast") ? "-toast" : "")\(args.contains("agents") ? "-agents" : "").png"))
             }
         }
     }
