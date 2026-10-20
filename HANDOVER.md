@@ -118,4 +118,22 @@ swift run mlxplayer-mcp     # stdio MCP server
 - Settings files with missing keys used to reset everything; loading is now lenient (`SettingsStore.decodeLeniently`).
 - Bundle: `scripts/bundle.sh` then `open "dist/MLX Player.app"`.
 
-(update test marker)
+
+## Loading, unloading and memory (hardened)
+
+- `ServerSupervisor`: one server at a time. A stop or a newer start cancels a start still loading (`ServerError.cancelled`), so there are no races or orphan processes. Stop waits until the process and its children are gone.
+- "Running" means the model answered a one-token request (warm-up), so out-of-memory shows at load time. OOM is detected from the log or SIGKILL; `AppModel.startServer` retries once with half the context and cache.
+- Before loading: the previous model is unloaded first, the context is lowered if free memory is short, the backend port is picked from free ones.
+- `server.pid` (pid + start time) lets the next launch kill a server left by a crash or force quit. Quitting also kills it synchronously.
+- Memory is measured as physical footprint of the server tree (includes GPU-wired memory), not resident size.
+- Idle unload never cuts a request off; pressure unload waits up to 60 s for idle. Three failed starts in 5 minutes stop automatic restarts.
+- Tests: `SupervisorTests` (fake server script), plus kill -9 / rapid cycle checks on hardware.
+
+## Updates from the repo branch
+
+- `Updater` (app) + `UpdateChecker`/`UpdateSwap` (core). Settings > Updates, popover banner, daily quiet check (setting `autoCheckUpdates`).
+- The build embeds its commit, repo and branch (`MLXCommit`, `MLXRepo`, `MLXBranch` in Info.plist, set by `scripts/bundle.sh`). The check asks GitHub to compare that commit with the branch head; only "ahead" offers an update.
+- Install: clone or fetch into `~/Library/Application Support/MLX Player/source`, run `scripts/bundle.sh` into `staging`, verify (codesign, files present, `--self-test` prints the commit), then `swap.sh` replaces the app after quit. The new app writes `update-ok` after 4 s; without it within 40 s the old app is restored and a notice is shown.
+- Needs git and the Xcode tools on the user's Mac, and a writable install location.
+- Tested for real against a branch: 0ff9953 to 69a0cc2 in about 40 s. For scripted runs: `open -n --env MLX_UPDATE_NOW=1 "MLX Player.app"`. Test builds use `MLX_BRANCH=<branch> scripts/bundle.sh`.
+- Not done: prebuilt releases from CI (would remove the toolchain requirement), Developer ID signing and notarization.

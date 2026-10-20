@@ -37,6 +37,8 @@ final class Updater {
 
     /// Tells a pending swap script that this version started fine, and surfaces a rollback if one happened.
     func confirmLaunch() {
+        // Leftovers of a finished update.
+        for name in ["staging", "swap.sh", "swap.log"] { try? FileManager.default.removeItem(at: paths.root.appendingPathComponent(name)) }
         let failed = URL(fileURLWithPath: markerURL.path + ".failed")
         if let text = try? String(contentsOf: failed, encoding: .utf8) {
             notice = text.trimmingCharacters(in: .whitespacesAndNewlines)
