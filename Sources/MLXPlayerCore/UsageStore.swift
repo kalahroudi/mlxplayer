@@ -65,6 +65,8 @@ public struct UsageSummary: Equatable, Sendable {
     public var byClient: [Row] = []
     public var byModel: [Row] = []
 
+    public init() {}
+
     public static func == (l: UsageSummary, r: UsageSummary) -> Bool {
         l.requests == r.requests && l.tokensIn == r.tokensIn && l.tokensOut == r.tokensOut
     }

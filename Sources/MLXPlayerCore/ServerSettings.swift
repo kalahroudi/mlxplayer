@@ -13,6 +13,8 @@ public struct ServerSettings: Codable, Equatable, Sendable {
     public var prefillStepSize = 2048
     public var promptConcurrency = 8
     public var decodeConcurrency = 32
+    /// KV cache quantization (4 or 8). nil = full precision. mlx-lm serves one request at a time when set.
+    public var kvBits: Int?
 
     // Sampling defaults
     public var temperature = 0.6
@@ -63,6 +65,7 @@ public struct ServerSettings: Codable, Equatable, Sendable {
         if promptCacheEnabled {
             add("--prompt-cache-bytes", String(UInt64(promptCacheGB * 1_073_741_824)))
         }
+        if let bits = kvBits { add("--kv-bits", String(bits)) }
         if let draft = draftModel, !draft.isEmpty {
             add("--draft-model", draft)
             add("--num-draft-tokens", String(numDraftTokens))
@@ -116,6 +119,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var unloadOnScreenLock = false
     public var unloadWhenMemoryNeeded = true
     public var preloadAtLogin = false
+    /// Use the request's "model" field to load a different installed model on demand.
+    public var switchModelsByRequest = true
 
     // Safeguards
     public var preflightFitCheck = true
@@ -141,6 +146,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     public var lastModelID: String?
 
+    // Updates from the repo's main branch
+    public var autoCheckUpdates = true
+
     public init() {}
 
     /// Applies a profile's preset values.
@@ -165,7 +173,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
 /// Reads and writes settings as JSON under the app folder.
 public final class SettingsStore: @unchecked Sendable {
-    private struct Payload: Codable {
+    struct Payload: Codable {
         var app = AppSettings()
         var perModel: [String: ServerSettings] = [:]
     }
@@ -176,9 +184,27 @@ public final class SettingsStore: @unchecked Sendable {
 
     public init(paths: AppPaths) {
         url = paths.settingsFile
-        if let data = try? Data(contentsOf: url), let p = try? JSONDecoder().decode(Payload.self, from: data) {
-            payload = p
+        if let data = try? Data(contentsOf: url) { payload = Self.decodeLeniently(data) }
+    }
+
+    /// Fills keys missing from an older or hand-edited file with defaults, so new settings never reset old ones.
+    static func decodeLeniently(_ data: Data) -> Payload {
+        var out = Payload()
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return out }
+        func merged<T: Codable>(_ stored: Any?, over base: T) -> T {
+            guard let stored = stored as? [String: Any],
+                  let baseData = try? JSONEncoder().encode(base),
+                  var dict = try? JSONSerialization.jsonObject(with: baseData) as? [String: Any] else { return base }
+            for (k, v) in stored { dict[k] = v }
+            guard let mergedData = try? JSONSerialization.data(withJSONObject: dict),
+                  let value = try? JSONDecoder().decode(T.self, from: mergedData) else { return base }
+            return value
         }
+        out.app = merged(root["app"], over: AppSettings())
+        for (id, raw) in (root["perModel"] as? [String: Any]) ?? [:] {
+            out.perModel[id] = merged(raw, over: ServerSettings(modelID: id))
+        }
+        return out
     }
 
     public var app: AppSettings {

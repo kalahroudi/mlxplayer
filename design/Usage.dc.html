@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Usage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.nav{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;font-size:13px;color:#c4c4cc}
+.nav.on{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px}
+.ch{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:8px;padding:2px;gap:2px}
+.seg button{border:none;background:none;border-radius:6px;font-size:12.5px;padding:5px 12px;color:#c4c4cc}
+.seg button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+.kpi{flex:1;display:flex;flex-direction:column;gap:4px}
+.kpi b{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.kpi b small{font-size:12px;color:#9a9aa4;font-weight:500;margin-left:3px}
+.kpi span:last-child{font-size:11.5px;color:#9a9aa4}
+.cl{display:grid;grid-template-columns:110px 1fr 62px;gap:10px;align-items:center;font-size:12.5px;padding:7px 0}
+.bar{height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;display:flex}
+.th{display:grid;grid-template-columns:minmax(0,2fr) 80px 80px 80px 90px 90px;gap:10px;padding:6px 0;font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.tr{display:grid;grid-template-columns:minmax(0,2fr) 80px 80px 80px 90px 90px;gap:10px;padding:8px 0;font-size:12.5px;border-top:1px solid rgba(255,255,255,.06);color:#d4d4da}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="usage" hint-size="210px,820px"></dc-import>
+  <div style="flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Usage</span>
+        <span style="font-size:13px;color:#9a9aa4">Stored locally. Nothing leaves your Mac.</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="seg"><button class="on">Today</button><button>7 days</button><button>30 days</button></div>
+        <button class="btn" style="height:32px">Export CSV</button>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;gap:18px">
+      <div class="kpi"><span class="lbl">Tokens in</span><b>1.36M</b><span>prompt</span></div>
+      <div class="kpi"><span class="lbl">Tokens out</span><b>198K</b><span>generated</span></div>
+      <div class="kpi"><span class="lbl">Avg speed</span><b>54<small>tok/s</small></b><span>peak 71</span></div>
+      <div class="kpi"><span class="lbl">First token</span><b>0.8<small>s</small></b><span>median</span></div>
+      <div class="kpi"><span class="lbl">Requests</span><b>128</b><span>0 errors</span></div>
+      <div class="kpi"><span class="lbl">Model loaded</span><b>4h 12m</b><span>of 12h</span></div>
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:stretch">
+      <div class="card" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+        <div class="ch">Tokens per hour <span style="display:flex;gap:14px;font-size:12px;font-weight:400;color:#c4c4cc"><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#5B67F0;margin-right:6px"></i>In</span><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#5bc0eb;margin-right:6px"></i>Out</span></span></div>
+        <svg viewBox="0 0 710 196" width="100%" height="196" role="img" aria-label="Tokens per hour today. Usage peaks between 10:00 and 16:00.">
+          <line x1="0" y1="170" x2="710" y2="170" stroke="rgba(255,255,255,.12)"/>
+          <line x1="0" y1="95" x2="710" y2="95" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+          <line x1="0" y1="20" x2="710" y2="20" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+          <g fill="#5B67F0">
+            <rect x="10" y="166" width="20" height="4" rx="2"/><rect x="39" y="168" width="20" height="2" rx="1"/><rect x="68" y="168" width="20" height="2" rx="1"/><rect x="97" y="168" width="20" height="2" rx="1"/><rect x="126" y="167" width="20" height="3" rx="1"/><rect x="155" y="164" width="20" height="6" rx="2"/><rect x="184" y="156" width="20" height="14" rx="2"/><rect x="213" y="140" width="20" height="30" rx="2"/><rect x="242" y="108" width="20" height="62" rx="2"/><rect x="271" y="82" width="20" height="88" rx="2"/><rect x="300" y="66" width="20" height="104" rx="2"/><rect x="329" y="74" width="20" height="96" rx="2"/><rect x="358" y="100" width="20" height="70" rx="2"/><rect x="387" y="86" width="20" height="84" rx="2"/><rect x="416" y="60" width="20" height="110" rx="2"/><rect x="445" y="44" width="20" height="126" rx="2"/><rect x="474" y="72" width="20" height="98" rx="2"/><rect x="503" y="98" width="20" height="72" rx="2"/><rect x="532" y="126" width="20" height="44" rx="2"/><rect x="561" y="140" width="20" height="30" rx="2"/><rect x="590" y="148" width="20" height="22" rx="2"/><rect x="619" y="156" width="20" height="14" rx="2"/><rect x="648" y="162" width="20" height="8" rx="2"/><rect x="677" y="165" width="20" height="5" rx="2"/>
+          </g>
+          <g fill="#5bc0eb">
+            <rect x="126" y="166" width="20" height="1"/><rect x="155" y="162" width="20" height="2"/><rect x="184" y="152" width="20" height="4"/><rect x="213" y="131" width="20" height="9"/><rect x="242" y="90" width="20" height="18"/><rect x="271" y="58" width="20" height="24"/><rect x="300" y="36" width="20" height="30"/><rect x="329" y="46" width="20" height="28"/><rect x="358" y="80" width="20" height="20"/><rect x="387" y="62" width="20" height="24"/><rect x="416" y="28" width="20" height="32"/><rect x="445" y="8" width="20" height="36"/><rect x="474" y="44" width="20" height="28"/><rect x="503" y="78" width="20" height="20"/><rect x="532" y="114" width="20" height="12"/><rect x="561" y="132" width="20" height="8"/><rect x="590" y="142" width="20" height="6"/><rect x="619" y="152" width="20" height="4"/>
+          </g>
+          <g fill="#9a9aa4" font-size="11" font-family="Inter, sans-serif"><text x="10" y="190">00:00</text><text x="184" y="190">06:00</text><text x="358" y="190">12:00</text><text x="532" y="190">18:00</text></g>
+        </svg>
+      </div>
+
+      <div class="card" style="width:360px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px">
+        <div class="ch" style="margin-bottom:6px">By client <span style="font-size:11.5px;font-weight:400;color:#9a9aa4">tokens in + out</span></div>
+        <div class="cl"><span>Claude Code</span><div class="bar"><i style="width:62%;background:#5B67F0"></i></div><span class="mono" style="text-align:right">963K</span></div>
+        <div class="cl"><span>Cursor</span><div class="bar"><i style="width:22%;background:#5B67F0"></i></div><span class="mono" style="text-align:right">342K</span></div>
+        <div class="cl"><span>Open WebUI</span><div class="bar"><i style="width:11%;background:#5B67F0"></i></div><span class="mono" style="text-align:right">171K</span></div>
+        <div class="cl"><span>curl / other</span><div class="bar"><i style="width:5%;background:#5B67F0"></i></div><span class="mono" style="text-align:right">78K</span></div>
+        <div style="font-size:11.5px;color:#9a9aa4;margin-top:6px">Identified by user-agent header</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:stretch">
+      <div class="card" style="flex:1;min-width:0">
+        <div class="ch" style="margin-bottom:4px">By model</div>
+        <div class="th"><span>Model</span><span>Requests</span><span>In</span><span>Out</span><span>Avg speed</span><span>Loaded</span></div>
+        <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-30B-A3B-4bit</span><span class="mono">104</span><span class="mono">1.19M</span><span class="mono">171K</span><span class="mono">56 t/s</span><span class="mono">3h 40m</span></div>
+        <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen2.5-Coder-14B-8bit</span><span class="mono">19</span><span class="mono">142K</span><span class="mono">21K</span><span class="mono">38 t/s</span><span class="mono">0h 28m</span></div>
+        <div class="tr"><span style="font-weight:600;color:#f2f2f4">gemma-3-4b-it-4bit</span><span class="mono">5</span><span class="mono">28K</span><span class="mono">6K</span><span class="mono">121 t/s</span><span class="mono">0h 04m</span></div>
+      </div>
+      <div class="card" style="width:360px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+        <div class="ch">Loaded vs idle <span style="font-size:11.5px;font-weight:400;color:#9a9aa4">last 24 h</span></div>
+        <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px">
+          <span style="width:33.3%;background:rgba(255,255,255,.1)"></span><span style="width:18.7%;background:#4ade9b"></span><span style="width:4.2%;background:rgba(255,255,255,.1)"></span><span style="width:12.5%;background:#4ade9b"></span><span style="width:8.3%;background:rgba(255,255,255,.1)"></span><span style="width:22.9%;background:#4ade9b"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#9a9aa4"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>Now</span></div>
+        <div style="font-size:12.5px;color:#c4c4cc;line-height:1.5"><b style="color:#4ade9b;font-weight:600">Idle unload freed 25.7 GB</b> for 7h 48m today.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

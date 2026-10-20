@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Discover models</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.nav{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;font-size:13px;color:#c4c4cc}
+.nav.on{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#d4d4da;padding:3px 0}
+.box{width:15px;height:15px;border-radius:4px;border:1.5px solid #6f6f7a;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none}
+.box.on{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.box .ico{width:11px;height:11px;stroke-width:2.2}
+.fl{display:flex;flex-direction:column;gap:3px}
+.res{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.fit{font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.fit i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.meta{font-size:11.5px;color:#9a9aa4}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="discover" hint-size="210px,820px"></dc-import>
+
+  <!-- filters -->
+  <div style="width:246px;box-sizing:border-box;border-right:1px solid rgba(255,255,255,.07);padding:20px 18px;display:flex;flex-direction:column;gap:18px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:600">Filters</span><button style="background:none;border:none;color:#8f9bff;font-size:12px;padding:0">Reset</button></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(74,222,155,.1);border:1px solid rgba(74,222,155,.25);border-radius:10px;padding:9px 11px">
+      <div class="fl"><span style="font-size:12.5px;font-weight:600">Fits my Mac</span><span style="font-size:11px;color:#9a9aa4">64 GB, 8 GB headroom</span></div>
+      <span style="width:34px;height:20px;border-radius:10px;background:#4ade9b;position:relative;flex:none"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#10131f"></span></span>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Parameters</span>
+      <div class="chk"><span class="box"></span>Under 3B</div>
+      <div class="chk"><span class="box on"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>3B – 8B</div>
+      <div class="chk"><span class="box on"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>8B – 14B</div>
+      <div class="chk"><span class="box on"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>14B – 35B</div>
+      <div class="chk"><span class="box"></span>35B and up</div>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Quantization</span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span class="chip">3-bit</span>
+        <span class="chip" style="background:#5B67F0;color:#fff">4-bit</span>
+        <span class="chip">6-bit</span>
+        <span class="chip" style="background:#5B67F0;color:#fff">8-bit</span>
+        <span class="chip">bf16</span>
+        <span class="chip">mxfp4</span>
+      </div>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Capability</span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip" style="background:#5B67F0;color:#fff">Chat</span><span class="chip">Code</span><span class="chip">Reasoning</span><span class="chip">Vision</span><span class="chip">Embeddings</span></div>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Alignment</span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip" style="background:#5B67F0;color:#fff">Standard</span><span class="chip">Uncensored</span><span class="chip">Abliterated</span></div>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Family</span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span class="chip" style="background:#5B67F0;color:#fff">Qwen</span><span class="chip">Llama</span><span class="chip">Gemma</span><span class="chip">Mistral</span><span class="chip">DeepSeek</span><span class="chip">Phi</span><span class="chip">GLM</span>
+      </div>
+    </div>
+
+    <div class="fl">
+      <span class="lbl" style="margin-bottom:4px">Publisher</span>
+      <div class="chk"><span class="box on"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>mlx-community</div>
+      <div class="chk"><span class="box"></span>lmstudio-community</div>
+      <div class="chk"><span class="box"></span>Any MLX repo</div>
+    </div>
+  </div>
+
+  <!-- results -->
+  <div style="flex:1;min-width:0;padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;gap:10px;align-items:center">
+      <div style="flex:1;display:flex;align-items:center;gap:9px;height:36px;box-sizing:border-box;padding:0 12px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:9px">
+        <svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="color:#9a9aa4"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <span style="font-size:14px">qwen coder</span>
+        <span style="width:1px;height:16px;background:#5B67F0"></span>
+        <span style="flex:1"></span>
+        <span class="mono" style="font-size:11px;color:#9a9aa4">⌘K</span>
+      </div>
+      <button class="btn" style="height:36px">Sort: Downloads<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="btn" style="height:36px">Paste repo ID</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12.5px;color:#9a9aa4">24 models on Hugging Face · filtered to what fits in 64 GB</span>
+      <span style="font-size:12px;color:#9a9aa4">Disk free: <b style="color:#e8e8ec;font-weight:600">412 GB</b></span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <!-- result 1 downloading -->
+      <div class="res" style="border-color:rgba(91,103,240,.55)">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen2.5-Coder-32B-Instruct-4bit</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">32B</span><span class="chip">4-bit</span><span class="chip">Code</span><span class="chip">32K ctx</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:2px"><div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.1)"><div style="width:41%;height:100%;border-radius:3px;background:#5B67F0"></div></div><span class="mono meta">7.6 / 18.4 GB · 61 MB/s · 3 min left</span></div>
+        </div>
+        <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Fits</span>
+        <button class="btn" aria-label="Pause download">Pause</button>
+        <button class="btn" aria-label="Cancel download">Cancel</button>
+      </div>
+      <!-- result 2 installed -->
+      <div class="res">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen2.5-Coder-14B-Instruct-8bit</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">14B</span><span class="chip">8-bit</span><span class="chip">Code</span><span class="chip">32K ctx</span></div>
+          <div class="meta">15.7 GB · ↓ 184K · ♥ 312 · updated 3 weeks ago</div>
+        </div>
+        <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Fits</span>
+        <span class="chip" style="background:rgba(91,103,240,.2);color:#b8bfff;font-weight:600">Installed</span>
+        <button class="btn">Load</button>
+      </div>
+      <!-- result 3 -->
+      <div class="res">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen3-Coder-30B-A3B-Instruct-4bit</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">30B MoE</span><span class="chip">4-bit</span><span class="chip">Code</span><span class="chip">256K ctx</span></div>
+          <div class="meta">17.2 GB · ↓ 142K · ♥ 540 · updated 5 days ago</div>
+        </div>
+        <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Fits</span>
+        <button class="btn" aria-label="View model card">Details</button>
+        <button class="btn primary"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>Download</button>
+      </div>
+      <!-- result 4 -->
+      <div class="res">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen2.5-Coder-7B-Instruct-4bit</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">7B</span><span class="chip">4-bit</span><span class="chip">Code</span><span class="chip">32K ctx</span></div>
+          <div class="meta">4.3 GB · ↓ 96K · ♥ 128 · updated 2 months ago</div>
+        </div>
+        <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Fits</span>
+        <button class="btn">Details</button>
+        <button class="btn primary"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>Download</button>
+      </div>
+      <!-- result 5 tight -->
+      <div class="res">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen2.5-Coder-32B-Instruct-bf16</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">32B</span><span class="chip">bf16</span><span class="chip">Code</span><span class="chip">32K ctx</span></div>
+          <div class="meta">65.5 GB · ↓ 18K · ♥ 44 · updated 4 months ago</div>
+        </div>
+        <span class="fit" style="color:#f5b544"><i style="background:#f5b544"></i>Too large</span>
+        <button class="btn">Details</button>
+        <button class="btn primary" style="opacity:.55"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>Download</button>
+      </div>
+      <!-- result 6 -->
+      <div class="res">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">Qwen2.5-Coder-3B-Instruct-6bit</span><span class="meta">mlx-community</span></div>
+          <div style="display:flex;gap:6px"><span class="chip">3B</span><span class="chip">6-bit</span><span class="chip">Code</span><span class="chip">32K ctx</span></div>
+          <div class="meta">2.5 GB · ↓ 31K · ♥ 52 · updated 3 months ago</div>
+        </div>
+        <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Fits</span>
+        <button class="btn">Details</button>
+        <button class="btn primary"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>Download</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

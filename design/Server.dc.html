@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Server and model settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;flex:none}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px}
+.ch{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.set{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
+.sn{font-size:13px;font-weight:500}
+.sd{font-size:11.5px;color:#9a9aa4;margin-top:2px;line-height:1.4;max-width:300px}
+.inp{height:28px;box-sizing:border-box;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.28);color:#f2f2f4;padding:0 9px;font:inherit;font-size:12.5px}
+.inp.num{width:74px;text-align:right}
+.sw{width:36px;height:20px;border-radius:10px;border:none;background:rgba(255,255,255,.2);position:relative;padding:0;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:#5B67F0}
+.sw.on i{left:18px}
+.sl{display:flex;align-items:center;gap:10px;width:270px}
+.sl input[type=range]{flex:1;accent-color:#5B67F0;margin:0}
+.code{background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#d4d4da}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:9px;padding:3px;gap:2px;align-self:flex-start}
+.seg button{border:none;background:none;border-radius:7px;font-size:12.5px;padding:6px 14px;color:#c4c4cc;white-space:nowrap}
+.seg button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+.tab{padding:5px 11px;border-radius:6px;font-size:12px;color:#c4c4cc;border:none;background:none;white-space:nowrap}
+.tab.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="server" hint-size="210px,820px"></dc-import>
+
+  <div style="flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:14px">
+    <!-- header -->
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px;font-weight:700;letter-spacing:-.01em;white-space:nowrap">Qwen3-30B-A3B-Instruct-4bit</span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#4ade9b;background:rgba(74,222,155,.12);padding:4px 10px;border-radius:99px;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#4ade9b"></span>Running</span>
+        </div>
+        <span style="font-size:12.5px;color:#9a9aa4">Preset <b style="color:#e8e8ec;font-weight:600">Coding agent</b> · saved per model</span>
+      </div>
+      <button class="btn" style="height:32px">Save preset</button>
+      <button class="btn" style="height:32px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2.2"/></svg>Stop</button>
+      <button class="btn primary" style="height:32px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2"/><path d="M13.5 2.5v3h-3"/></svg>Apply &amp; restart</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(245,181,68,.1);border:1px solid rgba(245,181,68,.3);border-radius:10px;padding:8px 14px;font-size:12.5px">
+      <svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="color:#f5b544"><path d="M8 2.2l6 10.6H2z"/><path d="M8 6.5v2.8M8 11.2h.01" stroke-width="1.8"/></svg>
+      <span style="flex:1"><b style="font-weight:600">3 unapplied changes:</b> context 32K → 64K, temperature 0.6 → 0.3, draft model on.</span>
+      <button style="background:none;border:none;color:#f5b544;font-size:12.5px;font-weight:600;padding:0">Revert</button>
+    </div>
+
+    <div class="seg">
+      <button class="{{cCtx}}" onClick="{{goCtx}}">Context &amp; memory</button>
+      <button class="{{cSamp}}" onClick="{{goSamp}}">Sampling</button>
+      <button class="{{cModel}}" onClick="{{goModel}}">Model</button>
+      <button class="{{cNet}}" onClick="{{goNet}}">Network</button>
+    </div>
+
+    <div style="display:flex;gap:18px;align-items:flex-start;min-height:0">
+      <!-- LEFT: active tab -->
+      <div style="width:630px;flex:none">
+        <sc-if value="{{isCtx}}" hint-placeholder-val="{{true}}">
+        <div class="card">
+          <div class="ch">Context &amp; memory</div>
+          <div class="set">
+            <div><div class="sn"><label for="ctx">Context length</label></div><div class="sd">Model max: 262,144</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <div class="sl"><input id="ctx" type="range" min="2048" max="262144" value="65536"><input class="inp num mono" value="65,536" aria-label="Context length tokens"></div>
+              <div style="display:flex;gap:5px"><span class="chip">8K</span><span class="chip">16K</span><span class="chip">32K</span><span class="chip" style="background:#5B67F0;color:#fff">64K</span><span class="chip">128K</span><span class="chip">256K</span></div>
+            </div>
+          </div>
+          <div class="set"><div><div class="sn">Prompt cache</div><div class="sd">Reuse shared prefixes across requests</div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Prompt cache"><i></i></button></div>
+          <div class="set"><div><div class="sn"><label for="pcb">Prompt cache budget</label></div><div class="sd">Oldest entries evicted past this</div></div><div style="display:flex;gap:6px;align-items:center"><input id="pcb" class="inp num mono" value="8"><span style="font-size:12px;color:#9a9aa4">GB</span></div></div>
+          <div class="set"><div><div class="sn"><label for="psz">Prefill step size</label></div><div class="sd">Lower to cap peak memory</div></div><input id="psz" class="inp num mono" value="2048"></div>
+          <div class="set"><div><div class="sn">Concurrency</div><div class="sd">Parallel requests</div></div><div style="display:flex;gap:8px;align-items:center"><input class="inp num mono" value="8" aria-label="Prompt concurrency" style="width:56px"><span style="font-size:12px;color:#9a9aa4">prompt</span><input class="inp num mono" value="32" aria-label="Decode concurrency" style="width:56px"><span style="font-size:12px;color:#9a9aa4">decode</span></div></div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{isSamp}}" hint-placeholder-val="{{false}}">
+        <div class="card">
+          <div class="ch">Sampling defaults <span style="font-size:11.5px;font-weight:400;color:#9a9aa4">Requests can override</span></div>
+          <div class="set"><div class="sn"><label for="t">Temperature</label></div><div class="sl"><input id="t" type="range" min="0" max="2" step="0.05" value="0.3"><input class="inp num mono" value="0.30" aria-label="Temperature value"></div></div>
+          <div class="set"><div class="sn"><label for="tp">Top P</label></div><div class="sl"><input id="tp" type="range" min="0" max="1" step="0.01" value="0.95"><input class="inp num mono" value="0.95" aria-label="Top P value"></div></div>
+          <div class="set"><div class="sn"><label for="tk">Top K</label></div><div class="sl"><input id="tk" type="range" min="0" max="200" value="20"><input class="inp num mono" value="20" aria-label="Top K value"></div></div>
+          <div class="set"><div class="sn"><label for="mp">Min P</label></div><div class="sl"><input id="mp" type="range" min="0" max="1" step="0.01" value="0"><input class="inp num mono" value="0.00" aria-label="Min P value"></div></div>
+          <div class="set"><div class="sn"><label for="mt">Max output tokens</label></div><input id="mt" class="inp num mono" value="4096"></div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{isModel}}" hint-placeholder-val="{{false}}">
+        <div class="card">
+          <div class="ch">Model options</div>
+          <div class="set"><div><div class="sn">Speculative decoding</div><div class="sd">Faster generation with a small draft model</div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Speculative decoding"><i></i></button></div>
+          <div class="set"><div class="sn"><label for="dm">Draft model</label></div><div style="display:flex;gap:8px;align-items:center"><input id="dm" class="inp mono" style="width:230px" value="Qwen3-0.6B-4bit"><input class="inp num mono" value="4" aria-label="Draft tokens" style="width:50px"><span style="font-size:12px;color:#9a9aa4">tokens</span></div></div>
+          <div class="set"><div class="sn">Chat template</div><div style="display:flex;gap:8px"><button class="btn">Model default<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg></button><button class="btn">Choose file</button></div></div>
+          <div class="set"><div><div class="sn"><label for="cta">Template arguments</label></div><div class="sd">JSON, e.g. thinking off</div></div><input id="cta" class="inp mono" style="width:270px" value='{"enable_thinking": false}'></div>
+          <div class="set"><div class="sn">LoRA adapter</div><div style="display:flex;gap:8px;align-items:center"><span class="mono" style="font-size:12px;color:#9a9aa4">none</span><button class="btn">Choose folder</button></div></div>
+          <div class="set"><div class="sn">Trust remote code</div><button class="sw" role="switch" aria-checked="false" aria-label="Trust remote code"><i></i></button></div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{isNet}}" hint-placeholder-val="{{false}}">
+        <div class="card">
+          <div class="ch">Network &amp; environment</div>
+          <div class="set"><div><div class="sn">Host &amp; port</div><div class="sd">0.0.0.0 exposes it to your network</div></div><div style="display:flex;gap:8px"><button class="btn mono" style="width:130px;justify-content:space-between">127.0.0.1<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:12px;height:12px"><path d="M4 6l4 4 4-4"/></svg></button><input class="inp num mono" value="8080" aria-label="Port"></div></div>
+          <div class="set"><div class="sn"><label for="ao">Allowed origins (CORS)</label></div><input id="ao" class="inp mono" style="width:270px" value="http://localhost:3000, *.local"></div>
+          <div class="set"><div><div class="sn">Environment variables</div><div class="sd">HF_TOKEN stored in Keychain</div></div><button class="btn">Edit 2 variables</button></div>
+          <div class="set"><div class="sn"><label for="xa">Extra arguments</label></div><input id="xa" class="inp mono" style="width:270px" placeholder="--log-level DEBUG"></div>
+          <div class="set"><div class="sn">Start server when the app launches</div><button class="sw on" role="switch" aria-checked="true" aria-label="Start server at app launch"><i></i></button></div>
+          <div class="set"><div><div class="sn">Unload after idle</div><div class="sd">Reloads on next request</div></div><div style="display:flex;gap:6px;align-items:center"><input class="inp num mono" value="30" aria-label="Idle minutes" style="width:56px"><span style="font-size:12px;color:#9a9aa4">min</span><button class="sw on" role="switch" aria-checked="true" aria-label="Unload after idle"><i></i></button></div></div>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- RIGHT -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+        <div class="card" style="display:flex;flex-direction:column;gap:9px">
+          <div class="ch" style="margin:0">Memory budget <span style="font-size:11.5px;font-weight:400;color:#9a9aa4">at 64K context</span></div>
+          <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;background:rgba(255,255,255,.08)">
+            <span style="width:25%;background:#5B67F0"></span><span style="width:10%;background:#4ade9b"></span><span style="width:5%;background:#f5b544"></span><span style="width:12%;background:rgba(255,255,255,.28)"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:12px">
+            <span style="color:#c4c4cc"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#5B67F0;margin-right:7px"></span>Model weights</span><span class="mono">16.2 GB</span>
+            <span style="color:#c4c4cc"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4ade9b;margin-right:7px"></span>KV cache (64K)</span><span class="mono">6.4 GB</span>
+            <span style="color:#c4c4cc"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f5b544;margin-right:7px"></span>Draft model</span><span class="mono">0.4 GB</span>
+            <span style="color:#c4c4cc"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.28);margin-right:7px"></span>macOS reserve</span><span class="mono">8.0 GB</span>
+          </div>
+          <div style="font-size:12px;color:#9a9aa4;border-top:1px solid rgba(255,255,255,.07);padding-top:8px"><b style="color:#4ade9b;font-weight:600">31.0 / 64 GB</b> · safe up to about 190K context</div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:2px"><button class="{{rEp}}" onClick="{{goEp}}">Endpoint</button><button class="{{rCmd}}" onClick="{{goCmd}}">Command</button><button class="{{rLog}}" onClick="{{goLog}}">Log</button></div>
+
+          <sc-if value="{{isEp}}" hint-placeholder-val="{{true}}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:5px 5px 5px 11px">
+              <span class="mono" style="flex:1;font-size:12.5px">http://127.0.0.1:8080/v1</span>
+              <button class="btn primary" style="height:26px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="2.2"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg>Copy</button>
+            </div>
+            <div class="code mono">curl http://127.0.0.1:8080/v1/chat/completions \<br>&nbsp;&nbsp;-H "Content-Type: application/json" \<br>&nbsp;&nbsp;-d '{"model": "mlx-community/Qwen3-30B-A3B-<br>&nbsp;&nbsp;Instruct-4bit", "messages": [{"role":"user",<br>&nbsp;&nbsp;"content":"Hello"}]}'</div>
+            <div style="display:flex;gap:6px"><button class="btn" style="flex:1;height:26px;font-size:12px">cURL</button><button class="btn" style="flex:1;height:26px;font-size:12px">Python</button><button class="btn" style="flex:1;height:26px;font-size:12px">Env vars</button><button class="btn" style="flex:1;height:26px;font-size:12px">Test</button></div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{isCmd}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="code mono">mlx_lm.server \<br>&nbsp;&nbsp;--model mlx-community/Qwen3-30B-A3B-Instruct-4bit \<br>&nbsp;&nbsp;--draft-model mlx-community/Qwen3-0.6B-4bit \<br>&nbsp;&nbsp;--num-draft-tokens 4 --host 127.0.0.1 --port 8080 \<br>&nbsp;&nbsp;--temp 0.3 --top-p 0.95 --top-k 20 --max-tokens 4096 \<br>&nbsp;&nbsp;--chat-template-args '{"enable_thinking":false}'</div>
+            <div style="display:flex;gap:6px"><button class="btn" style="height:26px;font-size:12px">Copy command</button><button class="btn" style="height:26px;font-size:12px">Edit by hand</button></div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{isLog}}" hint-placeholder-val="{{false}}">
+          <div class="code mono" style="font-size:11px;line-height:1.7;height:170px;overflow:auto">
+            <div><span style="color:#6f6f7a">12:03:58</span> POST /v1/chat/completions <span style="color:#4ade9b">200</span> 1,842→311 tok</div>
+            <div><span style="color:#6f6f7a">12:03:58</span> <span style="color:#9a9aa4">prompt cache hit 1,790/1,842 tok</span></div>
+            <div><span style="color:#6f6f7a">12:03:49</span> POST /v1/chat/completions <span style="color:#4ade9b">200</span> 604→128 tok</div>
+            <div><span style="color:#6f6f7a">12:03:21</span> GET&nbsp; /v1/models <span style="color:#4ade9b">200</span></div>
+            <div><span style="color:#6f6f7a">12:02:07</span> POST /v1/chat/completions <span style="color:#4ade9b">200</span> 12,310→904 tok</div>
+            <div><span style="color:#6f6f7a">12:00:11</span> <span style="color:#f5b544">prompt cache trimmed to 4 GB</span></div>
+            <div><span style="color:#6f6f7a">11:58:40</span> POST /v1/chat/completions <span style="color:#4ade9b">200</span> 3,120→402 tok</div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'ctx', rail: 'ep' };
+  }
+  renderVals() {
+    const { tab, rail } = this.state;
+    const t = (k) => (tab === k ? 'on' : '');
+    const r = (k) => (rail === k ? 'tab on' : 'tab');
+    return {
+      isCtx: tab === 'ctx', isSamp: tab === 'samp', isModel: tab === 'model', isNet: tab === 'net',
+      cCtx: t('ctx'), cSamp: t('samp'), cModel: t('model'), cNet: t('net'),
+      goCtx: () => this.setState({ tab: 'ctx' }), goSamp: () => this.setState({ tab: 'samp' }),
+      goModel: () => this.setState({ tab: 'model' }), goNet: () => this.setState({ tab: 'net' }),
+      isEp: rail === 'ep', isCmd: rail === 'cmd', isLog: rail === 'log',
+      rEp: r('ep'), rCmd: r('cmd'), rLog: r('log'),
+      goEp: () => this.setState({ rail: 'ep' }), goCmd: () => this.setState({ rail: 'cmd' }), goLog: () => this.setState({ rail: 'log' })
+    };
+  }
+}
+</script>
+</body>
+</html>

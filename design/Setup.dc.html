@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>First-run setup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:30px;padding:0 14px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:13px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.btn[disabled]{opacity:.45;cursor:default}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.step{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px}
+.dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;flex:none}
+.done{background:rgba(74,222,155,.16);color:#4ade9b}
+.now{background:#5B67F0;color:#fff}
+.todo{background:rgba(255,255,255,.08);color:#9a9aa4}
+</style>
+</helmet>
+<div style="width:820px;height:580px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+  <!-- titlebar -->
+  <div style="height:40px;display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid rgba(255,255,255,.07);background:#232326">
+    <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span><span style="width:12px;height:12px;border-radius:50%;background:#febc2e"></span><span style="width:12px;height:12px;border-radius:50%;background:#28c840"></span>
+    <span style="flex:1;text-align:center;font-size:13px;font-weight:600;color:#c4c4cc;margin-right:52px">Set up MLX Player</span>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0">
+    <!-- steps rail -->
+    <div style="width:290px;box-sizing:border-box;padding:22px 16px;background:#202023;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:4px">
+      <div style="padding:0 12px 14px;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:20px;font-weight:700;letter-spacing:-.01em">Let’s get you running</span>
+        <span style="font-size:12.5px;color:#9a9aa4;line-height:1.45">One-time setup. Installs in your user folder, no admin password.</span>
+      </div>
+      <div class="step"><span class="dot done"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><div><div style="font-size:13.5px;font-weight:500">Check your Mac</div><div style="font-size:12px;color:#9a9aa4">Apple Silicon · macOS 15 · 64 GB</div></div></div>
+      <div class="step"><span class="dot done"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><div><div style="font-size:13.5px;font-weight:500">Install uv</div><div style="font-size:12px;color:#9a9aa4">uv 0.9.5 · 14 MB</div></div></div>
+      <div class="step" style="background:rgba(91,103,240,.14)"><span class="dot now">3</span><div><div style="font-size:13.5px;font-weight:600">Create Python environment</div><div style="font-size:12px;color:#b8bfff">Python 3.12 · running…</div></div></div>
+      <div class="step"><span class="dot todo">4</span><div><div style="font-size:13.5px;font-weight:500;color:#c4c4cc">Install mlx-lm</div><div style="font-size:12px;color:#9a9aa4">mlx, mlx-lm, transformers</div></div></div>
+      <div class="step"><span class="dot todo">5</span><div><div style="font-size:13.5px;font-weight:500;color:#c4c4cc">Choose a first model</div><div style="font-size:12px;color:#9a9aa4">Advisor picks for your Mac</div></div></div>
+      <div class="step"><span class="dot todo">6</span><div><div style="font-size:13.5px;font-weight:500;color:#c4c4cc">Agent access (MCP)</div><div style="font-size:12px;color:#9a9aa4">Optional · let Claude Code set up models</div></div></div>
+    </div>
+
+    <!-- content -->
+    <div style="flex:1;box-sizing:border-box;padding:26px 28px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="lbl">Step 3 of 6</span>
+        <span style="font-size:19px;font-weight:600">Creating an isolated Python environment</span>
+        <span style="font-size:13px;color:#9a9aa4;line-height:1.45">Your system Python is never touched.</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:500">Downloading cpython-3.12.8</span><span class="mono" style="color:#9a9aa4">18.4 / 27.1 MB · 68%</span></div>
+        <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1)"><div style="width:68%;height:100%;border-radius:4px;background:#5B67F0"></div></div>
+      </div>
+
+      <!-- install location -->
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0">
+          <span class="lbl">Install location</span>
+          <span class="mono" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">~/Library/Application Support/MLX Player</span>
+        </div>
+        <div style="width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px">
+          <span class="lbl">Models folder</span>
+          <span class="mono" style="font-size:12px">~/.cache/huggingface</span>
+        </div>
+      </div>
+
+      <!-- log -->
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl">Live log</span><button style="background:none;border:none;color:#8f9bff;font-size:12px;padding:0">Copy log</button></div>
+        <div class="mono" style="flex:1;background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;font-size:11.5px;line-height:1.65;color:#b5b5be;overflow:hidden">
+          <div><span style="color:#4ade9b">✓</span> uv 0.9.5 installed to ~/.local/share/mlxplayer/bin</div>
+          <div><span style="color:#6f6f7a">$</span> uv python install 3.12</div>
+          <div>Searching for Python versions matching: Python 3.12</div>
+          <div>Downloading cpython-3.12.8-macos-aarch64-none (27.1MiB)</div>
+          <div style="color:#8f9bff">&nbsp;&nbsp;&nbsp;&nbsp;Downloading cpython-3.12.8 ▕██████████████░░░░░░▏ 68%</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px">
+        <button style="background:none;border:none;color:#9a9aa4;font-size:12.5px;padding:0;text-align:left;flex:1">Use existing mlx-lm</button>
+        <button class="btn">Cancel</button>
+        <button class="btn primary" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":820,"height":580}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

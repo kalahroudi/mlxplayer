@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu bar popover</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 10px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;flex:none}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.btn.icon{width:28px;padding:0}
+.btn.fill{flex:1}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600;white-space:nowrap}
+.tile{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:3px}
+.row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;flex:none}
+.row:hover{background:rgba(255,255,255,.06)}
+.nm{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec{display:flex;flex-direction:column;flex:none}
+</style>
+</helmet>
+<div style="width:440px;height:840px;box-sizing:border-box;position:relative;overflow:hidden;background:#10131f">
+  <!-- desktop menu bar -->
+  <div style="height:28px;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:0 14px;font-size:12.5px;color:#d8d8de">
+    <span style="color:#9a9aa4;width:66px;text-align:right;white-space:nowrap">Tue 12:04</span>
+    <span style="width:74px;box-sizing:border-box;height:22px;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.22);border-radius:5px;color:#fff;font-weight:600">
+      <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="1.5" width="4" height="2" rx="1"/><rect x="3" y="4.75" width="8" height="2" rx="1"/><rect x="3" y="8" width="12" height="2" rx="1"/><rect x="3" y="11.25" width="8" height="2" rx="1"/><rect x="3" y="14.5" width="4" height="2" rx="1"/></g></svg>
+      <span class="mono" style="font-size:11px">54 t/s</span>
+    </span>
+  </div>
+
+  <!-- popover -->
+  <div style="position:absolute;top:36px;left:20px;width:400px;box-sizing:border-box;background:rgba(34,35,40,.97);border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 0 0 .5px rgba(0,0,0,.6),0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(30px) saturate(1.4);padding:14px;display:flex;flex-direction:column;gap:12px">
+    <!-- arrow, tip centered under the menu bar icon -->
+    <div style="position:absolute;top:-8px;left:280px;width:14px;height:14px;background:rgba(34,35,40,1);border-left:1px solid rgba(255,255,255,.14);border-top:1px solid rgba(255,255,255,.14);transform:rotate(45deg);border-top-left-radius:3px"></div>
+    <!-- header -->
+    <div class="sec" style="flex-direction:row;align-items:center;gap:10px">
+      <svg viewBox="0 0 1024 1024" width="30" height="30" aria-hidden="true" style="flex:none"><defs><linearGradient id="mlxg" x1="140" y1="100" x2="900" y2="940" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7B86FF"/><stop offset="1" stop-color="#3A3CCB"/></linearGradient></defs><rect x="100" y="100" width="824" height="824" rx="186" fill="url(#mlxg)"/><g fill="#fff" fill-opacity=".96"><rect x="347" y="314" width="110" height="52" rx="26"/><rect x="347" y="400" width="220" height="52" rx="26"/><rect x="347" y="572" width="220" height="52" rx="26"/><rect x="347" y="658" width="110" height="52" rx="26"/></g><rect x="347" y="486" width="330" height="52" rx="26" fill="#7CF2C0"/></svg>
+      <div style="display:flex;flex-direction:column;flex:1;min-width:0">
+        <span style="font-size:14px;font-weight:600">MLX Player</span>
+        <span style="font-size:11.5px;color:#9a9aa4;white-space:nowrap">mlx-lm 0.28.3 · Python 3.12</span>
+      </div>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#4ade9b;background:rgba(74,222,155,.12);padding:4px 9px;border-radius:99px;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#4ade9b"></span>Running · 2h 14m</span>
+      <button class="btn icon" aria-label="Open settings" style="border-color:transparent;background:transparent"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6"/><circle cx="10" cy="5" r="1.7"/><circle cx="6" cy="11" r="1.7"/></svg></button>
+    </div>
+
+    <!-- loaded model -->
+    <div class="sec" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;gap:10px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span class="lbl">Loaded model</span>
+        <span style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Qwen3-30B-A3B-Instruct-4bit</span>
+        <span style="font-size:12px;color:#9a9aa4">mlx-community</span>
+      </div>
+      <div style="display:flex;gap:6px"><span class="chip">4-bit</span><span class="chip">16.2 GB</span><span class="chip">32K context</span><span class="chip">MoE</span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn fill"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2.2"/></svg>Stop</button>
+        <button class="btn fill"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2"/><path d="M13.5 2.5v3h-3"/></svg>Restart</button>
+        <button class="btn fill"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V3M5 6l3-3 3 3M3.5 13h9"/></svg>Unload</button>
+      </div>
+    </div>
+
+    <!-- endpoint -->
+    <div class="sec" style="gap:6px">
+      <span class="lbl">OpenAI-compatible endpoint</span>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:5px 5px 5px 11px">
+        <span class="mono" style="flex:1;font-size:12.5px;color:#e8e8ec;white-space:nowrap">http://127.0.0.1:8080/v1</span>
+        <button class="btn primary" style="height:26px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="2.2"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg>Copy URL</button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn fill" style="height:26px;font-size:12px">cURL</button>
+        <button class="btn fill" style="height:26px;font-size:12px">Env vars</button>
+        <button class="btn fill" style="height:26px;font-size:12px">Model ID</button>
+      </div>
+    </div>
+
+    <!-- live stats -->
+    <div class="sec" style="flex-direction:row;gap:8px">
+      <div class="tile">
+        <span class="lbl">Speed</span>
+        <span style="font-size:19px;font-weight:600;white-space:nowrap">54.2 <span style="font-size:11px;color:#9a9aa4;font-weight:500">tok/s</span></span>
+        <svg viewBox="0 0 80 22" width="100%" height="22" aria-hidden="true"><polyline fill="none" stroke="#4ade9b" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" points="0,15 8,12 16,14 24,8 32,10 40,5 48,9 56,6 64,11 72,4 80,7"/></svg>
+      </div>
+      <div class="tile">
+        <span class="lbl">Memory</span>
+        <span style="font-size:19px;font-weight:600;white-space:nowrap">17.4 <span style="font-size:11px;color:#9a9aa4;font-weight:500">/ 64 GB</span></span>
+        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:8px"><div style="width:27%;height:100%;border-radius:3px;background:#5B67F0"></div></div>
+      </div>
+      <div class="tile">
+        <span class="lbl">Requests</span>
+        <span style="font-size:19px;font-weight:600">128</span>
+        <span style="font-size:11px;color:#9a9aa4;margin-top:8px;white-space:nowrap">1 active</span>
+      </div>
+    </div>
+
+    <!-- usage -->
+    <button class="sec" style="flex-direction:row;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px 12px">
+      <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+        <span class="lbl">Today</span>
+        <span style="font-size:13px;font-weight:500;white-space:nowrap">1.36M in · 198K out <span style="color:#9a9aa4;font-weight:400">· 3 clients</span></span>
+      </div>
+      <svg viewBox="0 0 60 22" width="60" height="22" aria-hidden="true" style="flex:none"><g fill="#5B67F0"><rect x="0" y="16" width="4" height="6" rx="1"/><rect x="6" y="12" width="4" height="10" rx="1"/><rect x="12" y="6" width="4" height="16" rx="1"/><rect x="18" y="2" width="4" height="20" rx="1"/><rect x="24" y="7" width="4" height="15" rx="1"/><rect x="30" y="4" width="4" height="18" rx="1"/><rect x="36" y="1" width="4" height="21" rx="1"/><rect x="42" y="8" width="4" height="14" rx="1"/><rect x="48" y="14" width="4" height="8" rx="1"/><rect x="54" y="18" width="4" height="4" rx="1"/></g></svg>
+      <svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="color:#9a9aa4"><path d="M6 3.500l4.500 4.500L6 12.500"/></svg>
+    </button>
+
+    <!-- switch model -->
+    <div class="sec" style="gap:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <span class="lbl">Switch model</span>
+        <button style="background:none;border:none;color:#8f9bff;font-size:12px;padding:0;white-space:nowrap">Discover more</button>
+      </div>
+      <div class="row" style="background:rgba(91,103,240,.16)">
+        <svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="color:#8f9bff"><path d="M3.200 8.600l3 3L12.800 5"/></svg>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span class="nm">Qwen3-30B-A3B-Instruct-4bit</span><span style="font-size:11px;color:#9a9aa4">16.2 GB · 32K ctx</span></div>
+        <span style="font-size:11px;color:#8f9bff;font-weight:600">LOADED</span>
+      </div>
+      <div class="row">
+        <span style="width:15px;flex:none"></span>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span class="nm">Llama-3.3-70B-Instruct-4bit</span><span style="font-size:11px;color:#9a9aa4">39.7 GB · 128K ctx</span></div>
+        <button class="btn" style="height:24px;font-size:12px">Load</button>
+      </div>
+      <div class="row">
+        <span style="width:15px;flex:none"></span>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span class="nm">Qwen2.5-Coder-14B-Instruct-8bit</span><span style="font-size:11px;color:#9a9aa4">15.7 GB · 32K ctx</span></div>
+        <button class="btn" style="height:24px;font-size:12px">Load</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;height:32px;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:0 10px;color:#9a9aa4;font-size:12.5px;flex:none">
+        <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7.2" cy="7.2" r="4.7"/><path d="M10.800 10.800L14 14"/></svg>Search Hugging Face
+      </div>
+    </div>
+
+    <!-- footer -->
+    <div class="sec" style="flex-direction:row;align-items:center;gap:8px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px">
+      <button class="btn fill">Open MLX Player</button>
+      <button class="btn">Logs</button>
+      <button class="btn" style="color:#ff9a9a">Quit</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":440,"height":840}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

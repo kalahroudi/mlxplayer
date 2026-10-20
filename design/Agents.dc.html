@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent access MCP</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px}
+.ch{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.sw{width:36px;height:20px;border-radius:10px;border:none;background:rgba(255,255,255,.2);position:relative;padding:0;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:#5B67F0}
+.sw.on i{left:18px}
+.tool{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06);font-size:12.5px}
+.tool .mono{width:170px;font-size:12px;color:#e8e8ec;flex:none}
+.tool span:nth-child(2){flex:1;color:#9a9aa4}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:8px;padding:2px;gap:2px}
+.seg button{flex:1;border:none;background:none;border-radius:6px;font-size:12px;padding:6px 8px;color:#c4c4cc}
+.seg button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+.code{background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 12px;font-size:11.5px;line-height:1.65;color:#d4d4da}
+.msg{border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5}
+.call{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#b5b5be;padding:2px 0}
+.call .mono{color:#8f9bff}
+</style>
+</helmet>
+<div style="width:1240px;height:780px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+  <div style="height:40px;display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid rgba(255,255,255,.07);background:#232326">
+    <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span><span style="width:12px;height:12px;border-radius:50%;background:#febc2e"></span><span style="width:12px;height:12px;border-radius:50%;background:#28c840"></span>
+    <span style="flex:1;text-align:center;font-size:13px;font-weight:600;color:#c4c4cc;margin-right:52px">Settings · Agent access (MCP)</span>
+  </div>
+  <div style="flex:1;display:flex;gap:18px;padding:22px 26px;min-height:0">
+    <!-- left -->
+    <div style="width:560px;display:flex;flex-direction:column;gap:14px">
+      <div class="card" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div><div style="font-size:16px;font-weight:600">Let agents manage your models</div><div style="font-size:12.5px;color:#9a9aa4;line-height:1.5;margin-top:3px;max-width:400px">Local MCP server for Claude Code, Cursor and others. Changes need your approval.</div></div>
+          <button class="sw on" role="switch" aria-checked="true" aria-label="Enable MCP server"><i></i></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#4ade9b;font-weight:600"><span style="width:7px;height:7px;border-radius:50%;background:#4ade9b"></span>Ready · stdio transport · 10 tools</div>
+        <div class="lbl">Permission level</div>
+        <div class="seg"><button>Read-only</button><button class="on">Ask before changes</button><button>Full control</button></div>
+        <div style="font-size:12px;color:#9a9aa4;line-height:1.5">Changes ask first. Downloads over <b style="color:#e8e8ec;font-weight:600">10 GB</b> always ask.</div>
+      </div>
+
+      <div class="card">
+        <div class="ch" style="margin-bottom:6px">Tools exposed</div>
+        <div class="tool"><span class="mono">get_hardware</span><span>Chip, memory, GPU limit, free memory</span><span class="chip">read</span></div>
+        <div class="tool"><span class="mono">recommend_models</span><span>Best models for a described task</span><span class="chip">read</span></div>
+        <div class="tool"><span class="mono">analyze_model</span><span>Fit, speed, context for any HF repo</span><span class="chip">read</span></div>
+        <div class="tool"><span class="mono">search_models</span><span>Search and filter Hugging Face</span><span class="chip">read</span></div>
+        <div class="tool"><span class="mono">get_status</span><span>Running model, endpoint, memory, tok/s</span><span class="chip">read</span></div>
+        <div class="tool"><span class="mono">download_model</span><span>Download and cache a model</span><span class="chip" style="color:#f5b544;background:rgba(245,181,68,.12)">asks</span></div>
+        <div class="tool"><span class="mono">start_server</span><span>Load a model with given settings</span><span class="chip" style="color:#f5b544;background:rgba(245,181,68,.12)">asks</span></div>
+        <div class="tool"><span class="mono">update_settings</span><span>Context, sampling, draft model, template</span><span class="chip" style="color:#f5b544;background:rgba(245,181,68,.12)">asks</span></div>
+        <div class="tool"><span class="mono">stop_server</span><span>Stop or unload the model</span><span class="chip" style="color:#f5b544;background:rgba(245,181,68,.12)">asks</span></div>
+        <div class="tool"><span class="mono">delete_model</span><span>Remove from disk</span><span class="chip" style="color:#ff8a8a;background:rgba(255,138,138,.12)">always asks</span></div>
+      </div>
+    </div>
+
+    <!-- right -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div class="ch">Connect a client</div>
+        <div style="display:flex;gap:8px"><button class="btn primary">Claude Code</button><button class="btn">Claude Desktop</button><button class="btn">Cursor</button><button class="btn">Other (JSON)</button></div>
+        <div class="code mono">claude mcp add mlxplayer -- \<br>&nbsp;&nbsp;"/Applications/MLX Player.app/Contents/MacOS/mlxplayer-mcp"</div>
+        <div style="display:flex;gap:8px;align-items:center"><button class="btn"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10V4a1 1 0 0 1 1-1h6"/></svg>Copy command</button><button class="btn">Auto-install</button></div>
+      </div>
+
+      <div class="card" style="flex:1;display:flex;flex-direction:column;gap:9px;min-height:0">
+        <div class="ch">What it looks like <span class="chip">example</span></div>
+        <div class="msg" style="background:rgba(91,103,240,.16)"><span class="lbl" style="display:block;margin-bottom:3px">You</span>Find a model for refactoring my TypeScript monorepo and get it running.</div>
+        <div class="call"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:13px;height:13px"><path d="M3 8.5l3.2 3L13 4.5"/></svg><span class="mono">get_hardware</span>M3 Max, 64 GB, 34 GB free</div>
+        <div class="call"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:13px;height:13px"><path d="M3 8.5l3.2 3L13 4.5"/></svg><span class="mono">recommend_models</span>task: coding agent, long context</div>
+        <div class="msg" style="background:rgba(255,255,255,.05)"><span class="lbl" style="display:block;margin-bottom:3px">Agent</span>Qwen3-Coder-30B-A3B (4-bit) is the best fit: 17 GB, about 70 tok/s, and 64K context leaves 10 GB headroom. Want me to install it?</div>
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(245,181,68,.1);border:1px solid rgba(245,181,68,.3);border-radius:10px;padding:9px 12px;font-size:12.5px">
+          <span style="flex:1"><b style="font-weight:600">Claude Code wants to download</b> Qwen3-Coder-30B-A3B-4bit (17.2 GB) and start the server on port 8080.</span>
+          <button class="btn">Deny</button><button class="btn primary">Allow</button>
+        </div>
+              </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

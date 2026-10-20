@@ -1,0 +1,25 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-20T12:00:00Z" },
+  "title": "MLX Player Mockup",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 440, "h": 840, "title": "1 · Menu bar popover" },
+    "Setup.dc.html": { "x": 520, "y": 0, "w": 820, "h": 580, "title": "2 · First-run setup" },
+    "Sidebar.dc.html": { "x": 1420, "y": 0, "w": 210, "h": 820, "title": "Shared sidebar" },
+    "Discover.dc.html": { "x": 0, "y": 960, "w": 1240, "h": 820, "title": "3 · Discover & download" },
+    "Library.dc.html": { "x": 1320, "y": 960, "w": 1240, "h": 820, "title": "4 · Library" },
+    "Server.dc.html": { "x": 0, "y": 1920, "w": 1240, "h": 820, "title": "5 · Server & model settings", "is_interactive": true },
+    "Advisor.dc.html": { "x": 1320, "y": 1920, "w": 1240, "h": 820, "title": "6 · Model Advisor", "is_interactive": true },
+    "Memory.dc.html": { "x": 0, "y": 2880, "w": 1240, "h": 820, "title": "7 · Memory manager", "is_interactive": true },
+    "Usage.dc.html": { "x": 1320, "y": 2880, "w": 1240, "h": 820, "title": "8 · Usage" },
+    "Agents.dc.html": { "x": 0, "y": 3840, "w": 1240, "h": 780, "title": "9 · Agent access (MCP)" },
+    "Brand.dc.html": { "x": 1320, "y": 3840, "w": 1240, "h": 820, "title": "10 · App icon, menu bar icon & icon set" }
+  },
+  "order": ["Main.dc.html", "Setup.dc.html", "Sidebar.dc.html", "Discover.dc.html", "Library.dc.html", "Server.dc.html", "Advisor.dc.html", "Memory.dc.html", "Usage.dc.html", "Agents.dc.html", "Brand.dc.html"],
+  "notes": {
+    "t1": { "x": 0, "y": -260, "text": "MLX Player: design mockup for approval", "kind": "title1", "maxW": 1340 }
+  },
+  "designSystems": []
+}
