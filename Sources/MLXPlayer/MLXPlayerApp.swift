@@ -100,23 +100,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
         MainWindow.apply(state.4)
         guard let button = statusItem?.button else { return }
         button.image = Brand.menuBarImage(dim: !state.0 && !state.1, loading: state.1, attention: state.2)
+        // The item sits at the right edge, so a title that grows or shrinks slides the icon sideways under an
+        // open popover. Hold the title still while it is open; popoverDidClose catches up.
+        guard !popover.isShown else { return }
         if let text = state.3 {
             button.attributedTitle = NSAttributedString(string: " " + text, attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)])
         } else {
             button.title = ""
-        }
-        keepPopoverUnderIcon()
-    }
-
-    /// The icon changes width while a model loads (text appears or goes), which moves it in the menu bar.
-    /// Without re-anchoring, an open popover stays where it was and no longer sits under the icon.
-    private func keepPopoverUnderIcon() {
-        guard popover.isShown, let button = statusItem?.button else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.popover.isShown else { return }
-            button.superview?.layoutSubtreeIfNeeded()
-            self.popover.positioningRect = button.bounds
         }
     }
 
@@ -127,6 +118,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
+
+    func popoverDidClose(_ notification: Notification) { refreshStatusItem() }
 
     func closePopover() { if popover.isShown { popover.performClose(nil) } }
 
