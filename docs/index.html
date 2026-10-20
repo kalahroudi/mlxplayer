@@ -97,7 +97,7 @@
 <nav><div class="wrap">
   <a class="brand" href="#top"><img src="images/logo.png" alt="">MLX Player</a>
   <div class="links">
-    <a href="#why">Why</a><a href="#features">Features</a><a href="#screens">Screens</a><a href="#install">Install</a><a href="#agents">Agents</a>
+    <a href="#why">Why</a><a href="#features">Features</a><a href="#screens">Screens</a><a href="#switching">Switching</a><a href="#install">Install</a><a href="#agents">Agents</a>
     <a class="gh" href="https://github.com/kalahroudi/mlxplayer">GitHub</a>
   </div>
 </div></nav>
@@ -168,6 +168,17 @@
   <div class="pane" id="p-server"><div class="shot"><img loading="lazy" src="images/server-dark.png" alt="Server screen"></div><p>Context, cache, sampling and network settings, with a live memory budget and copy-ready endpoint, cURL and environment snippets.</p></div>
   <div class="pane" id="p-memory"><div class="shot"><img loading="lazy" src="images/memory-dark.png" alt="Memory screen"></div><p>Watch pressure and GPU memory, raise the GPU wired limit, and decide when the model should unload.</p></div>
   <div class="pane" id="p-popover"><div class="pop"><img loading="lazy" src="images/popover-dark.png" alt="Menu bar popover, dark"><img loading="lazy" src="images/popover.png" alt="Menu bar popover, light"></div><p>The menu bar popover shows the loaded model, speed, memory, requests and this Mac at a glance. Copy the URL and go.</p></div>
+</section>
+
+<section id="switching">
+  <div class="eyebrow">Switch models</div>
+  <h2>One model at a time, changed safely.</h2>
+  <p class="sub">Pick a model from the sidebar, the menu bar popover or the Library. Your tools keep the same endpoint.</p>
+  <div class="why">
+    <div class="card"><div class="n">1</div><div><h3>Running replies finish first</h3><p>A switch waits up to 60 seconds for requests in flight, so nothing is cut off mid-answer.</p></div></div>
+    <div class="card"><div class="n">2</div><div><h3>Failures roll back</h3><p>If the new model does not load, the previous one is brought back and you get a notice with a link to the logs.</p></div></div>
+    <div class="card"><div class="n">3</div><div><h3>Clients can switch too</h3><p>With <b>Switch by request</b> on (Memory screen), the <code>model</code> field of a request loads that installed model. Turn it off and every request uses the loaded one.</p></div></div>
+  </div>
 </section>
 
 <section id="install">

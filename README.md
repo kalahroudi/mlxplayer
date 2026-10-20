@@ -88,6 +88,14 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 Point any OpenAI-compatible client at `http://127.0.0.1:8080/v1` (any API key value works). The model loads on the first request.
 
+## Switch models
+
+Only one model is loaded at a time. You can switch from the sidebar, the menu bar popover or the Library screen.
+
+- A switch waits for running requests to finish (up to 60 s) so no reply is cut off.
+- If the new model fails to load, the previous one is brought back, so the endpoint is not left empty.
+- Clients can switch too: with **Switch by request** on (Memory > Loading), the `model` field of a request loads that installed model. Turn it off and every request uses the loaded model.
+
 ## Agent access (MCP)
 
 Once installed (see above), agents drive MLX Player over MCP.
