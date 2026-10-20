@@ -60,10 +60,10 @@ struct SettingsView: View {
                 SettingRow(title: "Hugging Face token", detail: tokenSaved ? "Saved in Keychain" : "For gated models") {
                     HStack(spacing: 8) {
                         SecureField("hf_…", text: $tokenDraft).textFieldStyle(.roundedBorder).frame(width: 150)
-                        Button("Save") { HFToken.save(tokenDraft); tokenDraft = ""; tokenSaved = HFToken.isSaved }
+                        Button("Save") { HFToken.save(tokenDraft); model.hf.invalidateCache(); tokenDraft = ""; tokenSaved = HFToken.isSaved }
                             .buttonStyle(.pill).disabled(tokenDraft.isEmpty)
                         if tokenSaved {
-                            Button("Remove") { HFToken.clear(); tokenSaved = HFToken.isSaved }.buttonStyle(.pill)
+                            Button("Remove") { HFToken.clear(); model.hf.invalidateCache(); tokenSaved = HFToken.isSaved }.buttonStyle(.pill)
                         }
                     }
                 }

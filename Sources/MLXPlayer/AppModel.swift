@@ -532,14 +532,14 @@ final class AppModel {
 
     // MARK: Search
 
-    func search() async {
+    func search(refresh: Bool = false) async {
         searching = true
         searchError = nil
         defer { searching = false }
         var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, format: filter.format, limit: 30)
         if filter.variant != .standard || filter.format != .mlx { q.publisher = nil }
         do {
-            let page = try await hf.searchPage(q)
+            let page = try await hf.searchPage(q, refresh: refresh)
             results = page.models
             searchCursor = page.next
         } catch {

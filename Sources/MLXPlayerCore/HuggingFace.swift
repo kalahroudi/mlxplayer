@@ -102,6 +102,13 @@ public final class HuggingFaceClient: @unchecked Sendable {
     private let fixedToken: String?
     private var token: String? { fixedToken ?? HFToken.current }
     private let base = URL(string: "https://huggingface.co")!
+    /// Search pages and repo details change slowly, so they are reused for a few minutes.
+    /// Retry, Refresh and saving a token call `invalidateCache()`.
+    private let pages = ResponseCache<SearchPage>(ttl: 300)
+    private let configs = ResponseCache<ModelConfig>(ttl: 3600)
+    private let sizes = ResponseCache<UInt64>(ttl: 3600)
+
+    public func invalidateCache() { pages.removeAll(); configs.removeAll(); sizes.removeAll() }
 
     public init(session: URLSession = .shared, token: String? = nil) {
         self.session = session
@@ -154,15 +161,18 @@ public final class HuggingFaceClient: @unchecked Sendable {
     }
 
     /// Fetches the first page, or the page behind `cursor` (the `next` of a previous page).
-    public func searchPage(_ q: SearchQuery, cursor: URL? = nil) async throws -> SearchPage {
+    public func searchPage(_ q: SearchQuery, cursor: URL? = nil, refresh: Bool = false) async throws -> SearchPage {
         let url = cursor ?? Self.searchURL(q, base: base)
+        if refresh { pages.removeAll() } else if let hit = pages.value(for: url.absoluteString) { return hit }
         let (data, resp) = try await session.data(for: request(url))
         guard let http = resp as? HTTPURLResponse else { return SearchPage(models: Self.parseSearch(data), next: nil) }
         guard http.statusCode == 200 else {
             let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw HFError.http(http.statusCode, detail)
         }
-        return SearchPage(models: Self.parseSearch(data), next: Self.nextLink(http.value(forHTTPHeaderField: "Link")))
+        let page = SearchPage(models: Self.parseSearch(data), next: Self.nextLink(http.value(forHTTPHeaderField: "Link")))
+        pages.store(page, for: url.absoluteString)
+        return page
     }
 
     public func search(_ q: SearchQuery) async throws -> [ModelMetadata] {
@@ -198,10 +208,12 @@ public final class HuggingFaceClient: @unchecked Sendable {
     }
 
     public func config(for id: String) async -> ModelConfig? {
+        if let hit = configs.value(for: id) { return hit }
         let url = base.appendingPathComponent("\(id)/resolve/main/config.json")
         guard let (data, resp) = try? await session.data(for: request(url)),
-              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return ModelConfig.parse(data)
+              (resp as? HTTPURLResponse)?.statusCode == 200, let cfg = ModelConfig.parse(data) else { return nil }
+        configs.store(cfg, for: id)
+        return cfg
     }
 
     /// Fills in layers, KV heads and context from config.json for more accurate memory estimates.
@@ -221,6 +233,7 @@ public final class HuggingFaceClient: @unchecked Sendable {
 
     /// Total bytes of all files in a repo, for download progress.
     public func repoSize(_ id: String) async -> UInt64? {
+        if let hit = sizes.value(for: id) { return hit }
         let url = base.appendingPathComponent("api/models/\(id)/tree/main")
         guard let (data, _) = try? await session.data(for: request(url)),
               let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return nil }
@@ -229,6 +242,7 @@ public final class HuggingFaceClient: @unchecked Sendable {
             if let lfs = f["lfs"] as? [String: Any], let size = lfs["size"] as? Int { total += UInt64(size) }
             else if let size = f["size"] as? Int { total += UInt64(size) }
         }
+        if total > 0 { sizes.store(total, for: id) }
         return total > 0 ? total : nil
     }
 }

@@ -25,6 +25,8 @@ struct DiscoverView: View {
                         ForEach(SearchSort.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
                     .labelsHidden().frame(width: 150)
+                    Button { Task { await model.search(refresh: true) } } label: { Image(systemName: "arrow.clockwise") }
+                        .buttonStyle(.pill).help("Refresh from Hugging Face").disabled(model.searching)
                     HelpButton(title: "Finding a model", entries: help)
                 }
             }
@@ -113,7 +115,7 @@ struct DiscoverView: View {
             centered {
                 Image(systemName: "wifi.exclamationmark").font(.system(size: 26)).foregroundStyle(.secondary)
                 Text(error).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 420)
-                Button("Retry") { Task { await model.search() } }.buttonStyle(.pill)
+                Button("Retry") { Task { await model.search(refresh: true) } }.buttonStyle(.pill)
             }
         } else if list.isEmpty {
             centered {
