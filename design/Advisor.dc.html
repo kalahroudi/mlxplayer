@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Model Advisor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;flex:none}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px}
+.ch{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.job{height:30px;padding:0 13px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-size:12.5px;font-weight:500;white-space:nowrap}
+.job.on{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.kv{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0}
+.kv span:first-child{color:#9a9aa4}
+.rec{flex:1;min-width:0;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.m{display:flex;justify-content:space-between;font-size:12px;color:#9a9aa4}
+.m b{color:#e8e8ec;font-weight:600}
+.th{display:grid;grid-template-columns:minmax(0,2.4fr) 80px 90px 100px 110px 130px 80px;gap:10px;padding:7px 14px;font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.tr{display:grid;grid-template-columns:minmax(0,2.4fr) 80px 90px 100px 110px 130px 80px;gap:10px;align-items:center;padding:9px 14px;border-radius:9px;font-size:12.5px;color:#d4d4da;border-top:1px solid rgba(255,255,255,.06)}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1)}
+.bar i{display:block;height:100%;border-radius:3px;background:#5B67F0}
+.fit{font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.fit i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.code{background:#121214;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 12px;font-size:11.5px;line-height:1.65;color:#d4d4da}
+.sw{width:36px;height:20px;border-radius:10px;border:none;background:rgba(255,255,255,.2);position:relative;padding:0;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:#5B67F0}
+.sw.on i{left:18px}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:9px;padding:3px;gap:2px;align-self:flex-start}
+.seg button{border:none;background:none;border-radius:7px;font-size:12.5px;padding:6px 14px;color:#c4c4cc;white-space:nowrap}
+.seg button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="advisor" hint-size="210px,820px"></dc-import>
+
+  <div style="flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Model Advisor</span>
+        <span style="font-size:13px;color:#9a9aa4">What fits your Mac, and what to run for the job.</span>
+      </div>
+      <button class="btn" style="height:30px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2"/><path d="M13.5 2.5v3h-3"/></svg>Re-scan hardware</button>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <span class="lbl">What do you need it for?</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="job on">Coding agent</button><button class="job">Chat assistant</button><button class="job">Reasoning &amp; math</button><button class="job">Long documents</button><button class="job">Tool calling</button><button class="job">Vision</button><button class="job">Embeddings</button><button class="job">Fastest</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="lbl" style="margin-right:4px">Variant</span><button class="job on">Standard</button><button class="job">Uncensored</button><button class="job">Abliterated</button></div>
+      <div style="display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:0 6px 0 12px;height:36px">
+        <span style="flex:1;font-size:13.5px">Refactor a large TypeScript monorepo, needs long context and reliable tool calls</span>
+        <button class="btn primary" style="height:26px">Analyze</button>
+      </div>
+    </div>
+
+    <div class="seg">
+      <button class="{{cRec}}" onClick="{{goRec}}">Recommended</button>
+      <button class="{{cCmp}}" onClick="{{goCmp}}">Compare sizes</button>
+      <button class="{{cPlan}}" onClick="{{goPlan}}">Context &amp; command</button>
+    </div>
+
+    <sc-if value="{{isRec}}" hint-placeholder-val="{{true}}">
+    <div style="display:flex;gap:14px;align-items:stretch">
+      <div class="card" style="width:300px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px">
+        <div class="ch">Your Mac <span class="chip" style="color:#4ade9b;background:rgba(74,222,155,.12)">Scanned</span></div>
+        <div class="kv" style="margin-top:6px"><span>Chip</span><span>Apple M3 Max</span></div>
+        <div class="kv"><span>GPU cores</span><span>40 · Metal 3</span></div>
+        <div class="kv"><span>CPU cores</span><span>16 (12P + 4E)</span></div>
+        <div class="kv"><span>Unified memory</span><span>64 GB</span></div>
+        <div class="kv"><span>Bandwidth</span><span>400 GB/s</span></div>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin-top:6px;padding-top:10px;display:flex;flex-direction:column;gap:7px">
+          <div class="m"><span>Usable by GPU</span><b>48 GB</b></div>
+          <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;background:rgba(255,255,255,.08)">
+            <span style="width:22%;background:rgba(255,255,255,.3)"></span><span style="width:53%;background:#4ade9b"></span>
+          </div>
+          <div class="m"><span>In use <b>14 GB</b></span><span>Free for a model <b style="color:#4ade9b">34 GB</b></span></div>
+          <button style="background:none;border:none;color:#8f9bff;font-size:11.5px;padding:0;text-align:left">Raise GPU limit to 56 GB</button>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="ch">Best for a coding agent on this Mac</span><span style="font-size:11.5px;color:#9a9aa4">Speeds are estimates</span></div>
+        <div style="display:flex;gap:12px;flex:1">
+          <div class="rec" style="border-color:rgba(91,103,240,.7);background:rgba(91,103,240,.1)">
+            <span class="chip" style="align-self:flex-start;background:#5B67F0;color:#fff;font-weight:600">BEST OVERALL</span>
+            <span style="font-size:14.5px;font-weight:600;line-height:1.3">Qwen3-Coder-30B-A3B-Instruct-4bit</span>
+            <div class="m"><span>Memory</span><b>17.2 GB + 6.4 GB KV</b></div>
+            <div class="m"><span>Context</span><b>64K</b></div>
+            <div class="m"><span>Speed</span><b>~70 tok/s</b></div>
+            <div class="m"><span>Coding quality</span><b>Very high</b></div>
+            <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Comfortable · 10 GB headroom</span>
+            <span style="font-size:12px;color:#b5b5be;line-height:1.5">30B quality at 3B speed. Strong tool calling.</span>
+            <button class="btn primary" style="margin-top:auto"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7.2L8 10.4l3.2-3.2M3 13h10"/></svg>Install &amp; run</button>
+          </div>
+          <div class="rec">
+            <span class="chip" style="align-self:flex-start;font-weight:600">HIGHEST QUALITY</span>
+            <span style="font-size:14.5px;font-weight:600;line-height:1.3">Qwen2.5-Coder-32B-Instruct-8bit</span>
+            <div class="m"><span>Memory</span><b>34.8 GB + 2.1 GB KV</b></div>
+            <div class="m"><span>Context</span><b>16K</b></div>
+            <div class="m"><span>Speed</span><b>~11 tok/s</b></div>
+            <div class="m"><span>Coding quality</span><b>Highest</b></div>
+            <span class="fit" style="color:#f5b544"><i style="background:#f5b544"></i>Tight · close other apps</span>
+            <span style="font-size:12px;color:#b5b5be;line-height:1.5">Best answers, slower, shorter context.</span>
+            <button class="btn" style="margin-top:auto">Download</button>
+          </div>
+          <div class="rec">
+            <span class="chip" style="align-self:flex-start;font-weight:600">FASTEST</span>
+            <span style="font-size:14.5px;font-weight:600;line-height:1.3">Qwen2.5-Coder-7B-Instruct-4bit</span>
+            <div class="m"><span>Memory</span><b>4.3 GB + 5.6 GB KV</b></div>
+            <div class="m"><span>Context</span><b>128K</b></div>
+            <div class="m"><span>Speed</span><b>~125 tok/s</b></div>
+            <div class="m"><span>Coding quality</span><b>Good</b></div>
+            <span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Comfortable · 24 GB headroom</span>
+            <span style="font-size:12px;color:#b5b5be;line-height:1.5">Quick edits. Also a draft model for the 30B.</span>
+            <button class="btn" style="margin-top:auto">Download</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isCmp}}" hint-placeholder-val="{{false}}">
+    <div class="card" style="padding-bottom:8px">
+      <div class="ch" style="margin-bottom:6px">Compare sizes and quantization <span style="display:flex;gap:6px"><span class="chip" style="background:#5B67F0;color:#fff">Qwen3 family</span><span class="chip">Llama</span><span class="chip">Gemma</span><span class="chip">Any</span></span></div>
+      <div class="th"><span>Model</span><span>Weights</span><span>Speed</span><span>Quality</span><span>Max context</span><span>Verdict</span><span></span></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-4B · 4-bit</span><span class="mono">2.3 GB</span><span class="mono">~160 t/s</span><div class="bar"><i style="width:38%"></i></div><span class="mono">256K</span><span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Runs great</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-8B · 4-bit</span><span class="mono">4.6 GB</span><span class="mono">~105 t/s</span><div class="bar"><i style="width:52%"></i></div><span class="mono">256K</span><span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Runs great</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-8B · 8-bit</span><span class="mono">8.7 GB</span><span class="mono">~58 t/s</span><div class="bar"><i style="width:55%"></i></div><span class="mono">256K</span><span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Runs great</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-14B · 4-bit</span><span class="mono">8.3 GB</span><span class="mono">~62 t/s</span><div class="bar"><i style="width:68%"></i></div><span class="mono">190K</span><span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Runs great</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr" style="background:rgba(91,103,240,.1)"><span style="font-weight:600;color:#f2f2f4;white-space:nowrap">Qwen3-30B-A3B · 4-bit <span class="chip" style="margin-left:6px;background:#5B67F0;color:#fff">Pick</span></span><span class="mono">17.2 GB</span><span class="mono">~70 t/s</span><div class="bar"><i style="width:82%"></i></div><span class="mono">190K</span><span class="fit" style="color:#4ade9b"><i style="background:#4ade9b"></i>Comfortable</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-32B · 8-bit</span><span class="mono">34.8 GB</span><span class="mono">~11 t/s</span><div class="bar"><i style="width:90%"></i></div><span class="mono">24K</span><span class="fit" style="color:#f5b544"><i style="background:#f5b544"></i>Tight</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div class="tr"><span style="font-weight:600;color:#f2f2f4">Qwen3-235B-A22B · 4-bit</span><span class="mono">132 GB</span><span class="mono">n/a</span><div class="bar"><i style="width:97%"></i></div><span class="mono">n/a</span><span class="fit" style="color:#ff8a8a"><i style="background:#ff8a8a"></i>Won’t fit</span><button class="btn" style="height:24px;font-size:12px">Details</button></div>
+      <div style="font-size:12px;color:#9a9aa4;padding:8px 14px 4px"><b style="color:#d4d4da;font-weight:600">4-bit vs 8-bit:</b> half the memory, twice the speed, slightly lower quality.</div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isPlan}}" hint-placeholder-val="{{false}}">
+    <div style="display:flex;gap:14px;align-items:stretch">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;gap:10px">
+        <div class="ch">Context planner <span style="font-size:11.5px;font-weight:400;color:#9a9aa4">Qwen3-Coder-30B-A3B · 4-bit</span></div>
+        <div style="position:relative;height:36px;margin-top:6px">
+          <div style="position:absolute;top:14px;left:0;right:0;height:8px;border-radius:4px;background:rgba(255,255,255,.1)"></div>
+          <div style="position:absolute;top:14px;left:0;width:25%;height:8px;border-radius:4px;background:#4ade9b"></div>
+          <div style="position:absolute;top:14px;left:25%;width:50%;height:8px;background:rgba(245,181,68,.55)"></div>
+          <div style="position:absolute;top:8px;left:25%;width:4px;height:20px;border-radius:2px;background:#fff;margin-left:-2px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#9a9aa4"><span>8K</span><span>32K</span><span>64K</span><span>128K</span><span>190K safe</span><span>256K</span></div>
+        <div style="font-size:12.5px;line-height:1.55;color:#c4c4cc"><b style="color:#4ade9b;font-weight:600">64K recommended.</b> Fits a mid-size repo and leaves 10 GB headroom.</div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:12.5px"><button class="sw on" role="switch" aria-checked="true" aria-label="Thinking off"><i></i></button>Thinking off for faster replies</div>
+      </div>
+      <div class="card" style="flex:1;display:flex;flex-direction:column;gap:10px">
+        <div class="ch">Generated command <span style="display:flex;gap:8px"><button class="btn" style="height:24px;font-size:12px">Copy</button><button class="btn primary" style="height:24px;font-size:12px">Run now</button></span></div>
+        <div class="code mono">mlx_lm.server \<br>&nbsp;&nbsp;--model mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit \<br>&nbsp;&nbsp;--port 8080 \<br>&nbsp;&nbsp;--chat-template-args '{"enable_thinking":false}'</div>
+        <div style="font-size:12px;color:#9a9aa4">Downloads on first run, then cached.</div>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'rec' };
+  }
+  renderVals() {
+    const tab = this.state.tab;
+    const t = (k) => (tab === k ? 'on' : '');
+    return {
+      isRec: tab === 'rec', isCmp: tab === 'cmp', isPlan: tab === 'plan',
+      cRec: t('rec'), cCmp: t('cmp'), cPlan: t('plan'),
+      goRec: () => this.setState({ tab: 'rec' }), goCmp: () => this.setState({ tab: 'cmp' }), goPlan: () => this.setState({ tab: 'plan' })
+    };
+  }
+}
+</script>
+</body>
+</html>

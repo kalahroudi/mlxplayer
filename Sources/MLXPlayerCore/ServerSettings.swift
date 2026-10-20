@@ -116,6 +116,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var unloadOnScreenLock = false
     public var unloadWhenMemoryNeeded = true
     public var preloadAtLogin = false
+    /// Use the request's "model" field to load a different installed model on demand.
+    public var switchModelsByRequest = true
 
     // Safeguards
     public var preflightFitCheck = true

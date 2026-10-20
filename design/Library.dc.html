@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.btn.icon{width:28px;padding:0}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.nav{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;font-size:13px;color:#c4c4cc}
+.nav.on{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
+.th{display:grid;grid-template-columns:minmax(0,3.2fr) 70px 90px 90px 120px 190px;gap:12px;padding:8px 16px;font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.tr{display:grid;grid-template-columns:minmax(0,3.2fr) 70px 90px 90px 120px 190px;gap:12px;align-items:center;padding:12px 16px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);font-size:12.5px;color:#d4d4da}
+.nm{font-size:13.5px;font-weight:600;color:#f2f2f4}
+.meta{font-size:11.5px;color:#9a9aa4}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="library" hint-size="210px,820px"></dc-import>
+
+  <!-- main -->
+  <div style="flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Library</span>
+        <span style="font-size:13px;color:#9a9aa4">6 models · 96.4 GB on disk · 412 GB free</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px;height:30px;box-sizing:border-box;padding:0 10px;width:230px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#9a9aa4;font-size:12.5px"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="width:13px;height:13px"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>Filter installed</div>
+        <button class="btn" style="height:30px">Sort: Last used</button>
+        <button class="btn" style="height:30px">Import</button>
+        <button class="btn primary" style="height:30px">Discover</button>
+      </div>
+    </div>
+
+    <!-- storage bar -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span class="lbl">Disk usage by model</span><span style="color:#9a9aa4">~/.cache/huggingface/hub · <button style="background:none;border:none;color:#8f9bff;font-size:12px;padding:0">Change location</button></span></div>
+      <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px">
+        <span style="width:41%;background:#5B67F0"></span><span style="width:17%;background:#4ade9b"></span><span style="width:16%;background:#f5b544"></span><span style="width:15%;background:#e879b9"></span><span style="width:8%;background:#5bc0eb"></span><span style="width:3%;background:#9a9aa4"></span>
+      </div>
+    </div>
+
+    <!-- table -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="th"><span>Model</span><span>Quant</span><span>Context</span><span>Size</span><span>Last used</span><span></span></div>
+
+      <div class="tr" style="border-color:rgba(91,103,240,.55);background:rgba(91,103,240,.1)">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#5B67F0;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">Qwen3-30B-A3B-Instruct-4bit</span><span class="meta">mlx-community · MoE 3B active · tool use</span></div></div>
+        <span>4-bit</span><span>32K / 256K</span><span>16.2 GB</span><span style="color:#4ade9b;font-weight:600">Loaded now</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn">Unload</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+      <div class="tr">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#4ade9b;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">Llama-3.3-70B-Instruct-4bit</span><span class="meta">mlx-community · tool use</span></div></div>
+        <span>4-bit</span><span>128K</span><span>39.7 GB</span><span>Yesterday</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn primary">Load</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+      <div class="tr">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#f5b544;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">Qwen2.5-Coder-14B-Instruct-8bit</span><span class="meta">mlx-community · code · has LoRA adapter “repo-style”</span></div></div>
+        <span>8-bit</span><span>32K</span><span>15.7 GB</span><span>3 days ago</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn primary">Load</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+      <div class="tr">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#e879b9;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">DeepSeek-R1-Distill-Qwen-14B-6bit</span><span class="meta">mlx-community · reasoning</span></div></div>
+        <span>6-bit</span><span>128K</span><span>12.1 GB</span><span>Last week</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn primary">Load</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+      <div class="tr">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#5bc0eb;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">gemma-3-4b-it-qat-4bit</span><span class="meta">mlx-community · small & fast · draft-model candidate</span></div></div>
+        <span>4-bit</span><span>128K</span><span>2.9 GB</span><span>2 weeks ago</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn primary">Load</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+      <div class="tr">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:10px;height:10px;border-radius:3px;background:#9a9aa4;flex:none"></span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="nm">Llama-3.2-1B-Instruct-4bit</span><span class="meta">mlx-community · not used in 60+ days</span></div></div>
+        <span>4-bit</span><span>128K</span><span>0.7 GB</span><span>2 months ago</span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn primary">Load</button><button class="btn">Settings</button><button class="btn icon" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- row context menu preview -->
+    <div style="display:flex;gap:16px;align-items:flex-start;margin-top:4px">
+      <div style="width:250px;background:rgba(44,44,48,.98);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:5px;box-shadow:0 14px 36px rgba(0,0,0,.5);display:flex;flex-direction:column;font-size:12.5px">
+        <span class="lbl" style="padding:6px 10px 4px">“More actions” menu</span>
+        <span style="padding:6px 10px">Reveal in Finder</span>
+        <span style="padding:6px 10px">Copy model ID</span>
+        <span style="padding:6px 10px">Open on Hugging Face</span>
+        <span style="padding:6px 10px">Duplicate with new settings…</span>
+        <span style="padding:6px 10px">Check for update</span>
+        <span style="padding:6px 10px;color:#ff9a9a;border-top:1px solid rgba(255,255,255,.08);margin-top:3px">Delete from disk…</span>
+      </div>
+      <div style="flex:1;font-size:12.5px;color:#9a9aa4;line-height:1.55;padding-top:6px">Each model keeps its own settings. Duplicate to make presets.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

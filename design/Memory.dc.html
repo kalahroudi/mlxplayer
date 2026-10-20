@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Memory manager</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,system-ui,sans-serif;color:#f2f2f4;-webkit-font-smoothing:antialiased}
+.mono{font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:5px;border:3px solid transparent;background-clip:padding-box}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.btn{height:28px;padding:0 12px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;flex:none}
+.btn.primary{background:#5B67F0;border-color:#5B67F0;color:#fff}
+.chip{font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#c4c4cc;white-space:nowrap}
+.lbl{font-size:10.5px;color:#9a9aa4;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px}
+.ch{font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.set{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
+.sn{font-size:13px;font-weight:500}
+.sd{font-size:11.5px;color:#9a9aa4;margin-top:2px;line-height:1.4;max-width:330px}
+.inp{height:28px;box-sizing:border-box;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.28);color:#f2f2f4;padding:0 9px;font:inherit;font-size:12.5px}
+.inp.num{width:64px;text-align:right}
+.sw{width:36px;height:20px;border-radius:10px;border:none;background:rgba(255,255,255,.2);position:relative;padding:0;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:#5B67F0}
+.sw.on i{left:18px}
+.seg{display:flex;background:rgba(0,0,0,.3);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:none;background:none;border-radius:7px;font-size:12.5px;padding:6px 14px;color:#c4c4cc;white-space:nowrap}
+.seg button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+.lg{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px}
+.lvl{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
+.pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;width:64px;text-align:center;flex:none}
+.ev{display:flex;gap:10px;font-size:12px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06);color:#c4c4cc}
+.ev span:first-child{width:62px;color:#9a9aa4;flex:none}
+</style>
+</helmet>
+<div style="width:1240px;height:820px;box-sizing:border-box;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;display:flex">
+  <dc-import name="Sidebar" active="memory" hint-size="210px,820px"></dc-import>
+
+  <div style="flex:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Memory</span>
+        <span style="font-size:13px;color:#9a9aa4">Use what the model needs, release the rest.</span>
+      </div>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#4ade9b;background:rgba(74,222,155,.12);padding:5px 11px;border-radius:99px;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#4ade9b"></span>Pressure: Normal</span>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="seg">
+        <button class="{{cLive}}" onClick="{{goLive}}">Live &amp; limits</button>
+        <button class="{{cRules}}" onClick="{{goRules}}">Loading &amp; rules</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="lbl">Profile</span>
+        <div class="seg"><button>Performance</button><button class="on">Balanced</button><button>Saver</button></div>
+      </div>
+    </div>
+
+    <sc-if value="{{isLive}}" hint-placeholder-val="{{true}}">
+    <div style="display:flex;gap:14px;align-items:flex-start">
+      <div style="width:610px;display:flex;flex-direction:column;gap:12px;flex:none">
+        <div class="card" style="display:flex;flex-direction:column;gap:10px">
+          <div class="ch">Live memory <span style="font-size:12px;font-weight:400;color:#9a9aa4">64 GB unified · swap <b style="color:#e8e8ec;font-weight:600">0 B</b></span></div>
+          <div style="display:flex;height:16px;border-radius:8px;overflow:hidden;gap:2px;background:rgba(255,255,255,.08)">
+            <span style="width:22%;background:rgba(255,255,255,.3)"></span><span style="width:25%;background:#5B67F0"></span><span style="width:10%;background:#4ade9b"></span><span style="width:5%;background:#f5b544"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px 14px;font-size:12px">
+            <span style="color:#c4c4cc"><i class="lg" style="background:rgba(255,255,255,.3)"></i>macOS &amp; apps</span><span class="mono">14.1 GB</span>
+            <span style="color:#c4c4cc"><i class="lg" style="background:#5B67F0"></i>Model weights</span><span class="mono">16.2 GB</span>
+            <span style="color:#c4c4cc"><i class="lg" style="background:#4ade9b"></i>KV cache</span><span class="mono">6.4 GB</span>
+            <span style="color:#c4c4cc"><i class="lg" style="background:#f5b544"></i>Prompt cache</span><span class="mono">3.1 GB</span>
+          </div>
+          <div class="lbl" style="margin-top:4px">Pressure, last 30 min</div>
+          <svg viewBox="0 0 560 46" width="100%" height="46" aria-label="Memory pressure over time, staying in the normal range" role="img"><rect x="0" y="30" width="560" height="16" fill="rgba(245,181,68,.10)"/><rect x="0" y="38" width="560" height="8" fill="rgba(255,138,138,.12)"/><polyline fill="none" stroke="#4ade9b" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" points="0,14 40,14 80,13 120,12 160,15 200,22 240,18 280,16 320,13 360,12 400,14 440,17 480,13 520,12 560,12"/></svg>
+        </div>
+
+        <div class="card">
+          <div class="ch" style="margin-bottom:4px">GPU memory limit</div>
+          <div class="set" style="border-top:none"><div><div class="sn">Wired limit</div><div class="sd">macOS default is ~75% of RAM</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <div style="display:flex;align-items:center;gap:10px;width:260px"><input type="range" min="32" max="60" value="56" aria-label="GPU wired limit in gigabytes" style="flex:1;accent-color:#5B67F0;margin:0"><input class="inp num mono" value="56" aria-label="Limit GB"><span style="font-size:12px;color:#9a9aa4">GB</span></div>
+              <span style="font-size:11.5px;color:#9a9aa4">Now 48 GB · leaves 8 GB for macOS</span>
+            </div>
+          </div>
+          <div class="set"><div><div class="sn">Keep after reboot</div><div class="sd">Otherwise resets on restart</div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Keep after reboot"><i></i></button></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:2px"><button class="btn primary">Apply</button><button class="btn">Revert</button></div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <div class="ch" style="margin-bottom:6px">Process footprint</div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:12.5px">
+            <span style="color:#c4c4cc">MLX Player (menu bar app)</span><span class="mono">38 MB</span>
+            <span style="color:#c4c4cc">Request proxy</span><span class="mono">4 MB</span>
+            <span style="color:#c4c4cc">mlx_lm.server</span><span class="mono">25.7 GB</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ch" style="margin-bottom:6px">Recent activity</div>
+          <div class="ev"><span>12:00</span><span style="color:#c4c4cc;width:auto">Prompt cache trimmed to 4 GB</span></div>
+          <div class="ev"><span>09:41</span><span style="color:#c4c4cc;width:auto">Loaded Qwen3-30B-A3B on request (11.8 s)</span></div>
+          <div class="ev"><span>Yesterday</span><span style="color:#c4c4cc;width:auto">Unloaded after 30 min idle, freed 25.7 GB</span></div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isRules}}" hint-placeholder-val="{{false}}">
+    <div style="display:flex;gap:14px;align-items:flex-start">
+      <div style="width:610px;display:flex;flex-direction:column;gap:12px;flex:none">
+        <div class="card">
+          <div class="ch" style="margin-bottom:4px">On-demand loading <button class="sw on" role="switch" aria-checked="true" aria-label="Enable on-demand loading"><i></i></button></div>
+          <div style="font-size:12px;color:#9a9aa4;line-height:1.5;margin-bottom:6px">Starts the model when a request arrives. Same URL for clients.</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:10px;background:rgba(0,0,0,.28);border-radius:9px;white-space:nowrap" class="mono"><span style="color:#8f9bff">client</span><span>→</span><span>:8080 proxy (4 MB)</span><span>→</span><span>:8081 mlx_lm.server</span></div>
+          <div class="set"><div><div class="sn">Unload after idle</div><div class="sd">Reload takes ~12 s</div></div><div style="display:flex;gap:6px;align-items:center"><input class="inp num mono" value="30" aria-label="Idle minutes"><span style="font-size:12px;color:#9a9aa4">min</span></div></div>
+          <div class="set"><div><div class="sn">Also unload when</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;font-size:12px;color:#c4c4cc">
+              <span style="display:flex;gap:8px;align-items:center">Mac sleeps <button class="sw on" role="switch" aria-checked="true" aria-label="Unload on sleep"><i></i></button></span>
+              <span style="display:flex;gap:8px;align-items:center">Screen locked 5 min <button class="sw" role="switch" aria-checked="false" aria-label="Unload on screen lock"><i></i></button></span>
+              <span style="display:flex;gap:8px;align-items:center">Another app needs memory <button class="sw on" role="switch" aria-checked="true" aria-label="Unload when another app needs memory"><i></i></button></span>
+            </div></div>
+          <div class="set"><div class="sn">Switch models by request</div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:11.5px;color:#9a9aa4">One model in memory at a time</span><button class="sw on" role="switch" aria-checked="true" aria-label="Switch models by request"><i></i></button></div></div>
+          <div class="set"><div class="sn">Preload at login</div><button class="sw" role="switch" aria-checked="false" aria-label="Preload at login"><i></i></button></div>
+          <div class="set"><div class="sn">Unload now</div><button class="btn">Unload</button></div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <div class="ch" style="margin-bottom:2px">Automatic responses</div>
+          <div style="font-size:12px;color:#9a9aa4;margin-bottom:4px">As memory pressure rises</div>
+          <div class="lvl"><span class="pill" style="background:rgba(74,222,155,.14);color:#4ade9b">Normal</span><div style="flex:1"><div class="sn">Do nothing</div></div></div>
+          <div class="lvl"><span class="pill" style="background:rgba(245,181,68,.14);color:#f5b544">Warning</span><div style="flex:1"><div class="sn">Trim prompt cache</div><div class="sd">Cache down to <b style="color:#e8e8ec">50%</b></div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Trim prompt cache on warning"><i></i></button></div>
+          <div class="lvl"><span class="pill" style="background:rgba(255,154,100,.15);color:#ff9a64">High</span><div style="flex:1"><div class="sn">Cap context for new requests</div><div class="sd">Limit to <b style="color:#e8e8ec">16K</b> tokens</div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Cap context on high pressure"><i></i></button></div>
+          <div class="lvl"><span class="pill" style="background:rgba(255,138,138,.15);color:#ff8a8a">Critical</span><div style="flex:1"><div class="sn">Unload the model</div><div class="sd">When swap passes <b style="color:#e8e8ec">2 GB</b></div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Unload on critical pressure"><i></i></button></div>
+        </div>
+
+        <div class="card">
+          <div class="ch" style="margin-bottom:4px">Safeguards</div>
+          <div class="set" style="border-top:none"><div><div class="sn">Pre-flight fit check</div><div class="sd">Warn before loading if it won’t fit</div></div><button class="sw on" role="switch" aria-checked="true" aria-label="Pre-flight fit check"><i></i></button></div>
+          <div class="set"><div class="sn">Auto-reduce context to fit</div><button class="sw on" role="switch" aria-checked="true" aria-label="Auto-reduce context"><i></i></button></div>
+          <div class="set"><div class="sn">Reserve for macOS</div><div style="display:flex;gap:6px;align-items:center"><input class="inp num mono" value="8" aria-label="Reserve GB"><span style="font-size:12px;color:#9a9aa4">GB</span></div></div>
+          <div class="set"><div class="sn">Prompt cache budget</div><div style="display:flex;gap:6px;align-items:center"><input class="inp num mono" value="8" aria-label="Cache budget GB"><span style="font-size:12px;color:#9a9aa4">GB</span></div></div>
+          <div class="set"><div class="sn">Be lighter on battery</div><button class="sw" role="switch" aria-checked="false" aria-label="Be lighter on battery"><i></i></button></div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'live' };
+  }
+  renderVals() {
+    const tab = this.state.tab;
+    return {
+      isLive: tab === 'live', isRules: tab === 'rules',
+      cLive: tab === 'live' ? 'on' : '', cRules: tab === 'rules' ? 'on' : '',
+      goLive: () => this.setState({ tab: 'live' }), goRules: () => this.setState({ tab: 'rules' })
+    };
+  }
+}
+</script>
+</body>
+</html>
