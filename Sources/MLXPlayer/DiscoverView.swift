@@ -8,6 +8,7 @@ struct DiscoverView: View {
     @State private var loadedOnce = false
 
     private let help: [(term: String, meaning: String)] = [
+        ("Format", "How the weights are packaged. MLX runs in this app. GGUF (llama.cpp, LM Studio, Ollama), GPTQ and AWQ (NVIDIA), ONNX and Core ML are listed so you can compare, but need another runtime."),
         ("Alignment", "Standard models refuse some requests. Uncensored and abliterated ones have that behavior reduced or removed."),
         ("Quantization (bit)", "How compactly the weights are stored. 4-bit is about a quarter of the size of 16-bit, with a small quality loss."),
         ("Parameters (B)", "Model size in billions. More parameters usually means better answers and more memory."),
@@ -32,13 +33,14 @@ struct DiscoverView: View {
             results
         }
         .sideOverlay(isPresented: $showDetail, title: selected?.displayName ?? "Model", width: 440) {
-            if let meta = selected { ModelDetail(meta: meta) }
+            if let meta = selected { ModelDetail(meta: meta, close: { showDetail = false }) }
         }
         .task {
             if model.results.isEmpty { await model.search() }
             loadedOnce = true
         }
         .onChange(of: model.filter.variant) { _, _ in Task { await model.search() } }
+        .onChange(of: model.filter.format) { _, _ in Task { await model.search() } }
         .onChange(of: model.searchSort) { _, _ in Task { await model.search() } }
     }
 
@@ -71,14 +73,19 @@ struct DiscoverView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08)))
 
             HStack(spacing: 8) {
+                ChoiceMenu(title: "Format", options: ModelFormat.allCases.map { ($0, $0.label) }, selection: $model.filter.format)
                 Segmented(options: ModelVariant.allCases.map { ($0, $0.label) }, selection: $model.filter.variant)
                 Divider().frame(height: 20)
                 FilterMenu(title: "Size", options: ModelFilter.SizeBucket.allCases.map { ($0, $0.rawValue) }, selection: $model.filter.sizes)
-                FilterMenu(title: "Quantization", options: [4, 5, 6, 8, 16].map { ($0, "\($0)-bit") }, selection: $model.filter.bits)
+                if model.filter.format.runsHere {
+                    FilterMenu(title: "Quantization", options: [4, 5, 6, 8, 16].map { ($0, "\($0)-bit") }, selection: $model.filter.bits)
+                }
                 FilterMenu(title: "Capability", options: Capability.allCases.map { ($0, $0.rawValue.capitalized) }, selection: $model.filter.capabilities)
                 FilterMenu(title: "Family", options: ModelFamily.allCases.map { ($0, $0.rawValue) }, selection: $model.filter.families)
-                Toggle(isOn: $model.filter.fitsMyMac) { Text("Fits my Mac").font(.system(size: 12.5)) }
-                    .toggleStyle(.switch).controlSize(.small).tint(.accentIndigo)
+                if model.filter.format.runsHere {
+                    Toggle(isOn: $model.filter.fitsMyMac) { Text("Fits my Mac").font(.system(size: 12.5)) }
+                        .toggleStyle(.switch).controlSize(.small).tint(.accentIndigo)
+                }
                 Spacer(minLength: 0)
                 if filtersActive {
                     Button("Clear filters") {
@@ -165,7 +172,7 @@ struct ResultRow: View {
                     HStack(spacing: 5) {
                         Text(meta.publisher).font(.system(size: 11.5)).foregroundStyle(.secondary)
                         if let p = meta.totalParamsB { Chip(text: paramLabel(p, meta.activeParamsB)) }
-                        Chip(text: "\(meta.bits)-bit")
+                        if meta.format.runsHere { Chip(text: "\(meta.bits)-bit") } else { Chip(text: meta.format.label, tint: .warn) }
                         ForEach(Array(meta.capabilities.sorted { $0.rawValue < $1.rawValue }.filter { $0 != .chat }), id: \.self) {
                             Chip(text: $0.rawValue.capitalized)
                         }
@@ -181,12 +188,21 @@ struct ResultRow: View {
                 HubLink(id: meta.id)
             }
             VStack(alignment: .trailing, spacing: 3) {
-                Text(formatBytes(a.weightsBytes)).font(.system(size: 12.5, weight: .medium)).monospacedDigit()
+                if meta.format.runsHere {
+                    Text(formatBytes(a.weightsBytes)).font(.system(size: 12.5, weight: .medium)).monospacedDigit()
+                } else {
+                    Text(meta.format.label).font(.system(size: 12.5, weight: .medium))
+                }
                 Text("\(formatCount(meta.downloads)) downloads").font(.system(size: 10.5)).foregroundStyle(.secondary)
             }
             .frame(minWidth: 96, alignment: .trailing)
-            FitBadge(verdict: a.verdict).frame(minWidth: 80, alignment: .trailing)
-            DownloadButton(meta: meta).frame(minWidth: 110, alignment: .trailing)
+            if meta.format.runsHere {
+                FitBadge(verdict: a.verdict).frame(minWidth: 80, alignment: .trailing)
+                DownloadButton(meta: meta).frame(minWidth: 110, alignment: .trailing)
+            } else {
+                Chip(text: "Other runtime", tint: .warn).frame(minWidth: 80, alignment: .trailing)
+                Button { onOpen() } label: { Text("Details") }.buttonStyle(.pill(height: 26)).frame(minWidth: 110, alignment: .trailing)
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
@@ -208,9 +224,47 @@ struct HubLink: View {
 struct ModelDetail: View {
     @Environment(AppModel.self) private var model
     let meta: ModelMetadata
+    var close: () -> Void = {}
 
     var body: some View {
         let a = model.advisor.assess(meta, task: model.advisorTask)
+        if !meta.format.runsHere { otherFormat } else { mlxDetail(a) }
+    }
+
+    /// GGUF and other formats: explain what it is and where it runs instead of offering a download that cannot work.
+    private var otherFormat: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Text(meta.id).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
+                CopyIcon(text: meta.id, help: "Copy model ID")
+                HubLink(id: meta.id)
+            }
+            Chip(text: meta.format.label, tint: .warn)
+            Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    CardTitle(text: "Not served by this app")
+                    Text(meta.format.summary).font(.system(size: 12.5)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("To run it here, look for an MLX version of the same model.")
+                        .font(.system(size: 12.5)).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            HStack(spacing: 18) {
+                Label("\(formatCount(meta.downloads)) downloads", systemImage: "arrow.down.circle")
+                Label("\(formatCount(meta.likes)) likes", systemImage: "heart")
+            }
+            .font(.system(size: 12)).foregroundStyle(.secondary)
+            HStack {
+                Button { close(); model.filter.format = .mlx; model.searchText = meta.displayName
+                    .replacingOccurrences(of: "-GGUF", with: "").replacingOccurrences(of: "-gguf", with: "")
+                    .replacingOccurrences(of: "-GPTQ", with: "").replacingOccurrences(of: "-AWQ", with: "")
+                    Task { await model.search() } } label: { Text("Find MLX version") }
+                    .buttonStyle(.pillPrimary)
+            }
+        }
+    }
+
+    private func mlxDetail(_ a: Assessment) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 8) {
                 Text(meta.id).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)

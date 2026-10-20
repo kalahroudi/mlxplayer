@@ -176,3 +176,82 @@ struct FilterMenu<T: Hashable>: View {
         }
     }
 }
+
+/// Confirmation for actions that destroy data: the user must type the exact name before the button enables.
+/// The name has a copy icon right next to it so typing is optional.
+struct TypedConfirmPanel: View {
+    let warning: String
+    let phrase: String
+    let confirmTitle: String
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+    @State private var typed = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label {
+                Text(warning).font(.system(size: 12.5)).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.bad)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    Text("Type").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(phrase).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    CopyIcon(text: phrase, help: "Copy name")
+                    Text("to confirm").font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                TextField(phrase, text: $typed)
+                    .textFieldStyle(.plain).font(.system(size: 13, design: .monospaced))
+                    .padding(.vertical, 8).padding(.horizontal, 10)
+                    .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(matches ? Color.bad.opacity(0.7) : Color.primary.opacity(0.1)))
+                    .onSubmit { if matches { onConfirm() } }
+            }
+            HStack {
+                Button("Cancel", action: onCancel).buttonStyle(.pill)
+                Button(confirmTitle, action: onConfirm).buttonStyle(.pillDestructive).disabled(!matches)
+            }
+        }
+    }
+
+    private var matches: Bool { typed == phrase }
+}
+
+
+/// Single-choice dropdown button with a popover list, for settings like Format.
+struct ChoiceMenu<T: Hashable>: View {
+    let title: String
+    let options: [(T, String)]
+    @Binding var selection: T
+    @State private var shown = false
+
+    var body: some View {
+        Button { shown.toggle() } label: {
+            HStack(spacing: 5) {
+                Text(title).font(.system(size: 12.5)).foregroundStyle(.secondary)
+                Text(options.first { $0.0 == selection }?.1 ?? "").font(.system(size: 12.5, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $shown, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(options.indices, id: \.self) { i in
+                    Button { selection = options[i].0; shown = false } label: {
+                        HStack {
+                            Text(options[i].1).font(.system(size: 13))
+                            Spacer(minLength: 16)
+                            if options[i].0 == selection { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)) }
+                        }
+                        .padding(.horizontal, 10).padding(.vertical, 6).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
+            }
+            .padding(6).frame(minWidth: 180)
+        }
+    }
+}

@@ -51,3 +51,39 @@ final class HFSearchTests: XCTestCase {
         XCTAssertNil(HuggingFaceClient.nextLink("<https://x>; rel=\"prev\""))
     }
 }
+
+final class ModelFormatTests: XCTestCase {
+    func testDetect() {
+        XCTAssertEqual(ModelFormat.detect(id: "mlx-community/Qwen3-8B-4bit", tags: []), .mlx)
+        XCTAssertEqual(ModelFormat.detect(id: "unsloth/Qwen3-8B-GGUF", tags: ["gguf", "safetensors"]), .gguf)
+        XCTAssertEqual(ModelFormat.detect(id: "TheBloke/Llama-2-7B-GPTQ", tags: ["safetensors", "gptq"]), .gptq)
+        XCTAssertEqual(ModelFormat.detect(id: "x/Model-AWQ", tags: []), .awq)
+        XCTAssertEqual(ModelFormat.detect(id: "onnx-community/Model", tags: ["onnx"]), .onnx)
+        XCTAssertEqual(ModelFormat.detect(id: "meta/Llama-3-8B", tags: ["safetensors"]), .safetensors)
+        XCTAssertEqual(ModelFormat.detect(id: "someone/m", tags: ["mlx", "gguf"]), .mlx)
+    }
+
+    func testOnlyMLXRunsHere() {
+        XCTAssertEqual(ModelFormat.allCases.filter(\.runsHere), [.mlx])
+    }
+
+    func testSearchURLUsesFormatFilterAndDropsAuthorForOthers() {
+        let base = URL(string: "https://huggingface.co")!
+        let gguf = HuggingFaceClient.searchURL(SearchQuery(publisher: nil, format: .gguf), base: base).absoluteString
+        XCTAssertTrue(gguf.contains("filter=gguf")); XCTAssertFalse(gguf.contains("author="))
+        XCTAssertTrue(gguf.contains("pipeline_tag=text-generation"))
+        let mlx = HuggingFaceClient.searchURL(SearchQuery(), base: base).absoluteString
+        XCTAssertTrue(mlx.contains("filter=mlx")); XCTAssertTrue(mlx.contains("author=mlx-community"))
+        XCTAssertTrue(mlx.contains("pipeline_tag=text-generation"))
+        // Even if a caller leaves the publisher set, a non-MLX search must not be limited to mlx-community.
+        let leaked = HuggingFaceClient.searchURL(SearchQuery(publisher: "mlx-community", format: .gguf), base: base).absoluteString
+        XCTAssertFalse(leaked.contains("author="))
+    }
+
+    func testFilterAppliesFormat() {
+        var f = ModelFilter(); f.format = .gguf
+        let models = [ModelMetadata.fromName("mlx-community/Qwen3-8B-4bit"),
+                      ModelMetadata(id: "unsloth/Qwen3-8B-GGUF", tags: ["gguf"])]
+        XCTAssertEqual(f.apply(models, advisor: nil).map(\.id), ["unsloth/Qwen3-8B-GGUF"])
+    }
+}

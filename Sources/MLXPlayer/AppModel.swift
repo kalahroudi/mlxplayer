@@ -536,8 +536,8 @@ final class AppModel {
         searching = true
         searchError = nil
         defer { searching = false }
-        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, limit: 30)
-        if filter.variant != .standard { q.publisher = nil }
+        var q = SearchQuery(text: searchText, publisher: publisher, sort: searchSort, variant: filter.variant, format: filter.format, limit: 30)
+        if filter.variant != .standard || filter.format != .mlx { q.publisher = nil }
         do {
             let page = try await hf.searchPage(q)
             results = page.models

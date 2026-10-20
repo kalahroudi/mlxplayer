@@ -12,6 +12,56 @@ public enum ModelVariant: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// How a model's weights are packaged. Only MLX runs in this app's server (`mlx_lm.server`).
+public enum ModelFormat: String, Codable, CaseIterable, Sendable {
+    case mlx, gguf, safetensors, gptq, awq, onnx, coreml
+
+    public var label: String {
+        switch self {
+        case .mlx: return "MLX"
+        case .gguf: return "GGUF"
+        case .safetensors: return "Safetensors"
+        case .gptq: return "GPTQ"
+        case .awq: return "AWQ"
+        case .onnx: return "ONNX"
+        case .coreml: return "Core ML"
+        }
+    }
+
+    /// Tag the Hugging Face API filters on.
+    public var hubFilter: String { rawValue }
+
+    /// True when the app can download and serve this format.
+    public var runsHere: Bool { self == .mlx }
+
+    /// One line on what the format is and where it runs.
+    public var summary: String {
+        switch self {
+        case .mlx: return "Apple's MLX format. Runs in this app on the Mac GPU."
+        case .gguf: return "llama.cpp format, popular with LM Studio and Ollama. Not served by this app."
+        case .safetensors: return "Original full-precision weights for PyTorch and Transformers. Large; convert to MLX to run here."
+        case .gptq: return "GPU-oriented quantization for NVIDIA. Not for Apple silicon."
+        case .awq: return "GPU-oriented quantization for NVIDIA. Not for Apple silicon."
+        case .onnx: return "Cross-platform runtime format. Not served by this app."
+        case .coreml: return "Apple's Core ML format for apps on the Neural Engine. Not served by this app."
+        }
+    }
+
+    /// Picks the most specific format from repo tags and name. A repo tagged both safetensors and gptq is GPTQ.
+    public static func detect(id: String, tags: [String]) -> ModelFormat {
+        let t = Set(tags.map { $0.lowercased() })
+        let name = id.lowercased()
+        if t.contains("mlx") || name.hasPrefix("mlx-community/") { return .mlx }
+        if t.contains("gguf") || name.contains("gguf") { return .gguf }
+        if t.contains("gptq") || name.contains("gptq") { return .gptq }
+        if t.contains("awq") || name.contains("awq") { return .awq }
+        if t.contains("onnx") || name.contains("onnx") { return .onnx }
+        if t.contains("coreml") || name.contains("coreml") { return .coreml }
+        // Metadata built from a name alone (installed models) has no tags; this app only installs MLX.
+        return tags.isEmpty ? .mlx : .safetensors
+    }
+}
+
 public enum Capability: String, Codable, CaseIterable, Sendable {
     case chat, code, reasoning, vision, embeddings
 }
@@ -62,6 +112,7 @@ public struct ModelMetadata: Codable, Equatable, Identifiable, Sendable {
     public var displayName: String { id.split(separator: "/").last.map(String.init) ?? id }
     public var isMoE: Bool { (activeParamsB ?? 0) > 0 && (activeParamsB ?? 0) < (totalParamsB ?? 0) }
     public var variant: ModelVariant { NameParser.variant(id: id, tags: tags) }
+    public var format: ModelFormat { ModelFormat.detect(id: id, tags: tags) }
     public var capabilities: Set<Capability> { NameParser.capabilities(id: id, tags: tags) }
 
     /// Bytes of fp16 KV cache per token of context. Uses the real config when known.

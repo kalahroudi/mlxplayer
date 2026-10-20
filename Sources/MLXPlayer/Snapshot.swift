@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MLXPlayerCore
 
 /// Developer tool: `MLXPlayer --snapshot DIR [dark] [screen]` renders screens of the real window to PNG files
 /// (no screen-recording permission needed) so layouts can be checked without clicking through the app.
@@ -11,6 +12,7 @@ enum Snapshot {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let dark = args.contains("dark")
         let collapse = args.contains("collapsed")
+        let format = ModelFormat.allCases.first { args.contains($0.rawValue) && $0 != .mlx }
         let only = args.compactMap { a in Screen(rawValue: a) }.first
 
         NSApp.setActivationPolicy(.accessory)
@@ -20,6 +22,7 @@ enum Snapshot {
         let wasCollapsed = model.app.sidebarCollapsed
         model.app.sidebarCollapsed = collapse
         defer { model.app.sidebarCollapsed = wasCollapsed }
+        if let format { model.filter.format = format }
         let root = MainWindow().environment(model).environment(nav).frame(width: 1240, height: 820)
         let host = NSHostingView(rootView: root)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 820),
@@ -37,7 +40,7 @@ enum Snapshot {
             guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
             host.cacheDisplay(in: host.bounds, to: rep)
             if let png = rep.representation(using: .png, properties: [:]) {
-                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "").png"))
+                try? png.write(to: dir.appendingPathComponent("\(screen.rawValue)\(dark ? "-dark" : "")\(collapse ? "-collapsed" : "")\(format.map { "-" + $0.rawValue } ?? "").png"))
             }
         }
     }

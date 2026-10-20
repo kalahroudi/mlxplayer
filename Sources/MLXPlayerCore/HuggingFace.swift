@@ -55,6 +55,7 @@ public struct ModelFilter: Equatable, Sendable {
     public var capabilities: Set<Capability> = []
     public var families: Set<ModelFamily> = []
     public var variant: ModelVariant = .standard
+    public var format: ModelFormat = .mlx
     public var fitsMyMac = false
 
     public init() {}
@@ -62,6 +63,7 @@ public struct ModelFilter: Equatable, Sendable {
     public func apply(_ models: [ModelMetadata], advisor: Advisor?, task: AdvisorTask = .chat) -> [ModelMetadata] {
         models.filter { m in
             if m.variant != variant { return false }
+            if m.format != format { return false }
             if !sizes.isEmpty {
                 guard let b = m.totalParamsB, sizes.contains(where: { $0.contains(b) }) else { return false }
             }
@@ -81,10 +83,12 @@ public struct SearchQuery: Equatable, Sendable {
     public var publisher: String? = "mlx-community"
     public var sort: SearchSort = .downloads
     public var variant: ModelVariant = .standard
+    public var format: ModelFormat = .mlx
     public var limit = 50
 
     public init(text: String = "", publisher: String? = "mlx-community", sort: SearchSort = .downloads,
-                variant: ModelVariant = .standard, limit: Int = 50) {
+                variant: ModelVariant = .standard, format: ModelFormat = .mlx, limit: Int = 50) {
+        self.format = format
         self.text = text
         self.publisher = publisher
         self.sort = sort
@@ -125,7 +129,7 @@ public final class HuggingFaceClient: @unchecked Sendable {
     static func searchURL(_ q: SearchQuery, base: URL) -> URL {
         var comps = URLComponents(url: base.appendingPathComponent("api/models"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
-            .init(name: "filter", value: "mlx"),
+            .init(name: "filter", value: q.format.hubFilter),
             .init(name: "sort", value: q.sort.apiValue),
             .init(name: "direction", value: "-1"),
             .init(name: "limit", value: String(q.limit)),
@@ -134,12 +138,15 @@ public final class HuggingFaceClient: @unchecked Sendable {
         var text = q.text
         switch q.variant {
         case .standard:
-            if let pub = q.publisher { items.append(.init(name: "author", value: pub)) }
+            // The mlx-community org only publishes MLX; other formats come from many authors.
+            if q.format == .mlx, let pub = q.publisher { items.append(.init(name: "author", value: pub)) }
         case .uncensored:
             text = (text + " uncensored").trimmingCharacters(in: .whitespaces)
         case .abliterated:
             text = (text + " abliterated").trimmingCharacters(in: .whitespaces)
         }
+        // Format tags also match speech, embedding and vision models, which mlx_lm.server cannot serve.
+        items.append(.init(name: "pipeline_tag", value: "text-generation"))
         if !text.isEmpty { items.append(.init(name: "search", value: text)) }
         for field in expandFields { items.append(.init(name: "expand[]", value: field)) }
         comps.queryItems = items
