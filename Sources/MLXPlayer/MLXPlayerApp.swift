@@ -50,11 +50,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
             return
         }
         setUpStatusItem()
-        // The SwiftUI placeholder Settings scene must never surface as an empty window.
-        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
-            guard let w = note.object as? NSWindow, w.identifier?.rawValue.localizedCaseInsensitiveContains("settings") == true else { return }
-            w.close()
-        }
         model.launch()
         if model.showSetup { showMain() }
         // Scripted check: MLX_SHOW_POPOVER=1 opens the popover and writes where it landed.
@@ -150,11 +145,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, N
     }
 }
 
+/// Plain AppKit entry point. SwiftUI's `App` would add a placeholder Settings window nobody asked for.
 @main
-struct MLXPlayerApp: App {
-    @NSApplicationDelegateAdaptor(AppController.self) private var controller
-
-    init() {
+enum MLXPlayerMain {
+    @MainActor static func main() {
         let args = CommandLine.arguments
         // The updater runs this on a freshly built app before replacing the installed one.
         if args.contains("--self-test") {
@@ -166,10 +160,40 @@ struct MLXPlayerApp: App {
             writeIconSet(to: URL(fileURLWithPath: args[i + 1]))
             exit(0)
         }
+        let app = NSApplication.shared
+        app.delegate = AppController.shared
+        app.mainMenu = makeMainMenu()
+        app.run()
     }
 
-    var body: some Scene {
-        Settings { EmptyView() }
+    /// Edit and Window menus so copy/paste and Cmd-W keep working in text fields and the main window.
+    @MainActor private static func makeMainMenu() -> NSMenu {
+        let main = NSMenu()
+        func add(_ title: String, _ items: [NSMenuItem]) {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: title)
+            items.forEach(menu.addItem)
+            item.submenu = menu
+            main.addItem(item)
+        }
+        func entry(_ title: String, _ action: Selector, _ key: String, _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            i.keyEquivalentModifierMask = mods
+            return i
+        }
+        add("MLX Player", [entry("Hide MLX Player", #selector(NSApplication.hide(_:)), "h"),
+                           .separator(),
+                           entry("Quit MLX Player", #selector(NSApplication.terminate(_:)), "q")])
+        add("Edit", [entry("Undo", Selector(("undo:")), "z"),
+                     entry("Redo", Selector(("redo:")), "z", [.command, .shift]),
+                     .separator(),
+                     entry("Cut", #selector(NSText.cut(_:)), "x"),
+                     entry("Copy", #selector(NSText.copy(_:)), "c"),
+                     entry("Paste", #selector(NSText.paste(_:)), "v"),
+                     entry("Select All", #selector(NSText.selectAll(_:)), "a")])
+        add("Window", [entry("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
+                       entry("Close", #selector(NSWindow.performClose(_:)), "w")])
+        return main
     }
 }
 
