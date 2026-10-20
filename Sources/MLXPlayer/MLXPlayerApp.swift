@@ -38,6 +38,15 @@ struct MLXPlayerApp: App {
     @State private var model = AppModel()
     @State private var nav = Navigator()
 
+    init() {
+        // Build-time helper: `MLXPlayer --write-iconset DIR` renders the app icon, then exits.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--write-iconset"), i + 1 < args.count {
+            writeIconSet(to: URL(fileURLWithPath: args[i + 1]))
+            exit(0)
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             PopoverView()
@@ -95,4 +104,28 @@ extension ServerState {
     var isStarting: Bool { if case .starting = self { return true } else { return false } }
     /// Detail text while loading, e.g. "Loading weights".
     var startingDetail: String? { if case .starting(let s) = self { return s } else { return nil } }
+}
+
+/// Writes the PNG sizes `iconutil` needs for an .icns.
+func writeIconSet(to dir: URL) {
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let sizes: [(String, CGFloat)] = [
+        ("icon_16x16", 16), ("icon_16x16@2x", 32), ("icon_32x32", 32), ("icon_32x32@2x", 64),
+        ("icon_128x128", 128), ("icon_128x128@2x", 256), ("icon_256x256", 256), ("icon_256x256@2x", 512),
+        ("icon_512x512", 512), ("icon_512x512@2x", 1024),
+    ]
+    for (name, px) in sizes {
+        let image = Brand.appIconImage(size: px)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(px), pixelsHigh: Int(px), bitsPerSample: 8,
+                                         samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0) else { continue }
+        rep.size = NSSize(width: px, height: px)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(x: 0, y: 0, width: px, height: px))
+        NSGraphicsContext.restoreGraphicsState()
+        if let png = rep.representation(using: .png, properties: [:]) {
+            try? png.write(to: dir.appendingPathComponent("\(name).png"))
+        }
+    }
 }
