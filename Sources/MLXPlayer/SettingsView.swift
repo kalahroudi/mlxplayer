@@ -41,11 +41,8 @@ struct SettingsView: View {
         return Card {
             VStack(spacing: 0) {
                 SettingRow(title: "Menu bar shows") {
-                    Picker("", selection: $model.app.menuBarDisplay) {
-                        Text("Speed").tag(AppSettings.MenuBarDisplay.speed)
-                        Text("Memory").tag(AppSettings.MenuBarDisplay.memory)
-                        Text("Icon only").tag(AppSettings.MenuBarDisplay.iconOnly)
-                    }.labelsHidden().frame(width: 120)
+                    Dropdown(options: [(AppSettings.MenuBarDisplay.speed, "Speed"), (.memory, "Memory"), (.iconOnly, "Icon only")],
+                             selection: $model.app.menuBarDisplay, width: 120)
                 }
                 SettingRow(title: "Appearance") {
                     Segmented(options: [(AppSettings.Appearance.system, "System"), (.light, "Light"), (.dark, "Dark")],

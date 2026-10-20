@@ -124,9 +124,7 @@ struct Sidebar: View {
                     Text(model.transition == .unloading ? "Unloading" : (running && model.transition == nil ? "Running" : (model.serverState.isStarting || model.transition != nil ? "Loading" : "Idle")))
                         .font(.system(size: 12, weight: .semibold))
                 }
-                if let id = model.shownModelID {
-                    Text(ModelMetadata.fromName(id).displayName).font(.system(size: 11.5)).lineLimit(1)
-                }
+                ModelSwitcher()
                 Text("\(model.draft.host == "0.0.0.0" ? "127.0.0.1" : model.draft.host):\(model.draft.port)")
                     .font(.system(size: 10.5, design: .monospaced)).foregroundStyle(.secondary)
             }
@@ -186,4 +184,60 @@ struct ListPanel<Content: View>: View {
 
 func fitColor(_ v: FitVerdict) -> Color {
     switch v { case .comfortable: return .good; case .tight: return .warn; case .wontFit: return .bad }
+}
+
+
+/// Global model picker: lists installed models and switches the loaded one from any screen.
+struct ModelSwitcher: View {
+    @Environment(AppModel.self) private var model
+    @State private var shown = false
+
+    var body: some View {
+        let id = model.shownModelID
+        Button { shown.toggle() } label: {
+            HStack(spacing: 4) {
+                Text(id.map { ModelMetadata.fromName($0).displayName } ?? "Choose a model")
+                    .font(.system(size: 11.5, weight: .medium)).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 2)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(model.installed.isEmpty)
+        .help("Switch model")
+        .popover(isPresented: $shown, arrowEdge: .trailing) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label2("Switch model").padding(.horizontal, 8).padding(.vertical, 4)
+                if model.activeRequests > 0 && model.isRunning {
+                    Text("\(model.activeRequests) request(s) running. A switch waits for them to finish.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 4)
+                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 1) {
+                        ForEach(model.installed) { m in
+                            let loaded = model.isRunning && model.activeModelID == m.id
+                            Button {
+                                shown = false
+                                if !loaded { Task { await model.switchModel(to: m.id) } }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).opacity(m.id == id ? 1 : 0).frame(width: 12)
+                                    Text(m.meta.displayName).font(.system(size: 13)).lineLimit(1)
+                                    Spacer(minLength: 12)
+                                    if loaded { Chip(text: "Loaded", tint: .good) }
+                                    Text(formatBytes(m.sizeBytes)).font(.system(size: 11)).foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 8).padding(.vertical, 6).contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(model.transition != nil)
+                        }
+                    }
+                }
+                .frame(maxHeight: 300)
+            }
+            .padding(6).frame(width: 320)
+        }
+    }
 }

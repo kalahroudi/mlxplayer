@@ -217,7 +217,7 @@ struct LibraryView: View {
             if active {
                 AsyncButton(title: "Unload", busyTitle: "Unloading…") { await model.stopServer() }.buttonStyle(.pill(height: 26))
             } else {
-                AsyncButton(title: "Load", busyTitle: "Loading…") { await model.startServer(model: m.id) }.buttonStyle(.pillPrimary)
+                AsyncButton(title: "Load", busyTitle: "Loading…") { await model.switchModel(to: m.id) }.buttonStyle(.pillPrimary)
             }
             Button("Settings") { model.select(model: m.id); nav.screen = .server }.buttonStyle(.pill(height: 26))
             Menu {

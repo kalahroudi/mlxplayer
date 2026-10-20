@@ -108,7 +108,7 @@ struct PopoverView: View {
                         } else if model.serverState.isStarting || model.transition != nil {
                             Text(model.transition == .unloading ? "Unloading…" : "Loading…").font(.system(size: 12)).foregroundStyle(.secondary)
                         } else {
-                            AsyncButton(title: "Load", busyTitle: "Loading…") { await model.startServer(model: id) }.buttonStyle(.pillPrimary)
+                            AsyncButton(title: "Load", busyTitle: "Loading…") { await model.switchModel(to: id) }.buttonStyle(.pillPrimary)
                         }
                     }
                 } else {
@@ -200,7 +200,7 @@ struct PopoverView: View {
         return VStack(alignment: .leading, spacing: 2) {
             if !others.isEmpty { Label2("Switch model").padding(.bottom, 2) }
             ForEach(others) { m in
-                Button { if m.id != loaded { Task { await model.startServer(model: m.id) } } } label: {
+                Button { if m.id != loaded { Task { await model.switchModel(to: m.id) } } } label: {
                     HStack {
                         Text(m.meta.displayName).font(.system(size: 12.5)).lineLimit(1)
                         if m.id == loaded { Chip(text: "Loaded", tint: .good) }

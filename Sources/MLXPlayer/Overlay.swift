@@ -255,3 +255,69 @@ struct ChoiceMenu<T: Hashable>: View {
         }
     }
 }
+
+
+/// Styled single-choice dropdown that replaces the system popup button. Same look as `ChoiceMenu`, sized by `width`.
+struct Dropdown<T: Hashable>: View {
+    let options: [(T, String)]
+    @Binding var selection: T
+    var width: CGFloat? = nil
+    var detail: ((T) -> String?)? = nil
+    @State private var shown = false
+    @State private var hover = false
+
+    var body: some View {
+        Button { shown.toggle() } label: {
+            HStack(spacing: 6) {
+                Text(options.first { $0.0 == selection }?.1 ?? "").font(.system(size: 12.5, weight: .medium)).lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10).frame(height: 28)
+            .frame(width: width)
+            .background(Color.primary.opacity(hover || shown ? 0.1 : 0.06), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(shown ? 0.25 : 0.1)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .popover(isPresented: $shown, arrowEdge: .bottom) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 1) {
+                    ForEach(options.indices, id: \.self) { i in
+                        DropdownRow(label: options[i].1, detail: detail?(options[i].0), selected: options[i].0 == selection) {
+                            selection = options[i].0
+                            shown = false
+                        }
+                    }
+                }
+                .padding(6)
+            }
+            .frame(minWidth: max(width ?? 0, 160), maxHeight: 320)
+            .fixedSize(horizontal: true, vertical: true)
+        }
+    }
+}
+
+private struct DropdownRow: View {
+    let label: String
+    var detail: String?
+    let selected: Bool
+    let action: () -> Void
+    @State private var hover = false
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).opacity(selected ? 1 : 0).frame(width: 12)
+                Text(label).font(.system(size: 13)).lineLimit(1)
+                Spacer(minLength: 12)
+                if let detail { Text(detail).font(.system(size: 11)).foregroundStyle(.secondary) }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 6)
+            .background(hover ? Color.accentIndigo.opacity(0.22) : .clear, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}

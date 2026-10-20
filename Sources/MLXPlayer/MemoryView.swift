@@ -125,10 +125,7 @@ struct MemoryView: View {
                     CardTitle(text: "Loading").padding(.bottom, 6)
                     ToggleRow(title: "Load on first request", isOn: $model.app.onDemandLoading)
                     SettingRow(title: "Unload when idle") {
-                        Picker("", selection: $model.app.idleUnloadMinutes) {
-                            Text("Never").tag(0)
-                            ForEach([5, 15, 30, 60, 120], id: \.self) { Text("\($0) min").tag($0) }
-                        }.labelsHidden().frame(width: 100)
+                        Dropdown(options: [(0, "Never")] + [5, 15, 30, 60, 120].map { ($0, "\($0) min") }, selection: $model.app.idleUnloadMinutes, width: 100)
                     }
                     ToggleRow(title: "Unload on sleep", isOn: $model.app.unloadOnSleep)
                     ToggleRow(title: "Unload on screen lock", isOn: $model.app.unloadOnScreenLock)
@@ -142,15 +139,11 @@ struct MemoryView: View {
                         CardTitle(text: "When memory is tight").padding(.bottom, 6)
                         ToggleRow(title: "Trim cache on warning", detail: "Applies with a restart when idle", isOn: $model.app.trimCacheOnWarning)
                         SettingRow(title: "Trim to") {
-                            Picker("", selection: $model.app.trimCacheToPercent) {
-                                ForEach([25, 50, 75], id: \.self) { Text("\($0)%").tag($0) }
-                            }.labelsHidden().frame(width: 90)
+                            Dropdown(options: [25, 50, 75].map { ($0, "\($0)%") }, selection: $model.app.trimCacheToPercent, width: 90)
                         }
                         ToggleRow(title: "Cap context when high", isOn: $model.app.capContextOnHigh)
                         SettingRow(title: "Cap at") {
-                            Picker("", selection: $model.app.cappedContext) {
-                                ForEach([4_096, 8_192, 16_384, 32_768], id: \.self) { Text(formatContext($0)).tag($0) }
-                            }.labelsHidden().frame(width: 90)
+                            Dropdown(options: [4_096, 8_192, 16_384, 32_768].map { ($0, formatContext($0)) }, selection: $model.app.cappedContext, width: 90)
                         }
                         ToggleRow(title: "Unload when critical", isOn: $model.app.unloadOnCritical)
                     }

@@ -370,15 +370,18 @@ final class AppModel {
 
     var isBusy: Bool { transition != nil || serverState.isStarting || serverState == .stopping }
 
-    func startServer(model: String? = nil) async {
+    func startServer(model: String? = nil, ownRequests: Int = 0) async {
         let id = model ?? draft.modelID
-        guard transition == nil else { return }
+        guard transition == nil else {
+            notify(.info, "Still working", detail: "Another model change is in progress. Try again when it finishes.")
+            return
+        }
         transition = .loading(id)
         defer { transition = nil }
-        await performStart(model: model)
+        await performStart(model: model, ownRequests: ownRequests)
     }
 
-    private func performStart(model: String? = nil) async {
+    private func performStart(model: String? = nil, ownRequests: Int = 0) async {
         let id = model ?? draft.modelID
         guard !id.isEmpty else { lastError = "Pick a model first."; return }
         guard isInstalled else { showSetup = true; return }
@@ -399,6 +402,7 @@ final class AppModel {
 
         // Free the old model first, so its memory counts as available for the new one.
         if serverState.isActive || serverState == .stopping {
+            await waitForIdle(keeping: ownRequests)
             let freed = await supervisor.footprintBytes
             await supervisor.stop()
             if freed > 0 { logs.append("Unloaded previous model, freed \(formatBytes(freed)).") }
@@ -495,6 +499,28 @@ final class AppModel {
         logs.append("Unloaded: \(reason)")
     }
 
+    /// Switch the loaded model from anywhere in the app. Running requests finish first; if the new model
+    /// fails to load, the previous one is brought back so the endpoint is not left empty.
+    func switchModel(to id: String) async {
+        if isRunning, activeModelID == id { return }
+        let previous = isRunning ? activeModelID : nil
+        await startServer(model: id)
+        if !isRunning, !serverState.isStarting, let previous, previous != id, transition == nil, isInstalledModel(previous) {
+            notify(.error, "Could not load \(ModelMetadata.fromName(id).displayName)",
+                   detail: "Bringing back \(ModelMetadata.fromName(previous).displayName).", action: "Show logs", screen: .logs)
+            await startServer(model: previous)
+        }
+    }
+
+    /// Waits (up to `timeout` seconds) for requests in flight to finish, so a switch or restart does not cut a reply off.
+    private func waitForIdle(keeping own: Int = 0, timeout: Double = 60) async {
+        guard activeRequests > own else { return }
+        logs.append("Waiting for \(activeRequests - own) running request(s) to finish before changing the model.")
+        let end = Date().addingTimeInterval(timeout)
+        while activeRequests > own, Date() < end { try? await Task.sleep(for: .milliseconds(250)) }
+        if activeRequests > own { logs.append("Still \(activeRequests - own) request(s) running after \(Int(timeout)) s; changing the model anyway.") }
+    }
+
     func restartServer() async {
         if let id = activeModelID ?? app.lastModelID { await startServer(model: id) }
     }
@@ -516,7 +542,7 @@ final class AppModel {
         guard let target else { return false }
         let task = Task { @MainActor [weak self] () -> Bool in
             guard let self else { return false }
-            await self.startServer(model: target)
+            await self.startServer(model: target, ownRequests: 1)
             return self.isRunning
         }
         loadTask = task

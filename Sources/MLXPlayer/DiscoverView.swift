@@ -21,10 +21,7 @@ struct DiscoverView: View {
         ScreenFrame {
             PageHeader(title: "Discover", subtitle: subtitle) {
                 HStack(spacing: 10) {
-                    Picker("", selection: $model.searchSort) {
-                        ForEach(SearchSort.allCases, id: \.self) { Text($0.label).tag($0) }
-                    }
-                    .labelsHidden().frame(width: 150)
+                    Dropdown(options: SearchSort.allCases.map { ($0, $0.label) }, selection: $model.searchSort, width: 150)
                     Button { Task { await model.search(refresh: true) } } label: { Image(systemName: "arrow.clockwise") }
                         .buttonStyle(.pill).help("Refresh from Hugging Face").disabled(model.searching)
                     HelpButton(title: "Finding a model", entries: help)

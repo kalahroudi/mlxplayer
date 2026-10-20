@@ -83,21 +83,14 @@ struct ServerView: View {
         switch tab {
         case .context:
             SettingRow(title: "Context length", detail: contextHint) {
-                Picker("", selection: $model.draft.contextLength) {
-                    ForEach(contextOptions, id: \.self) { Text(formatContext($0)).tag($0) }
-                }
-                .labelsHidden().frame(width: 110)
+                Dropdown(options: contextOptions.map { ($0, formatContext($0)) }, selection: $model.draft.contextLength, width: 110)
             }
             ToggleRow(title: "Prompt cache", detail: "Reuses work between requests", isOn: $model.draft.promptCacheEnabled)
             SettingRow(title: "Cache size") {
                 SliderField(value: $model.draft.promptCacheGB, range: 1...64, step: 1, format: "%.0f GB")
             }
             SettingRow(title: "KV cache", detail: model.draft.kvBits == nil ? nil : "One request at a time") {
-                Picker("", selection: $model.draft.kvBits) {
-                    Text("Full").tag(Int?.none)
-                    Text("8-bit").tag(Int?.some(8))
-                    Text("4-bit").tag(Int?.some(4))
-                }.labelsHidden().frame(width: 100)
+                Dropdown(options: [(Int?.none, "Full"), (Int?.some(8), "8-bit"), (Int?.some(4), "4-bit")], selection: $model.draft.kvBits, width: 100)
             }
             SettingRow(title: "Prefill step") { NumberField(value: $model.draft.prefillStepSize) }
             SettingRow(title: "Prompt concurrency") { NumberField(value: $model.draft.promptConcurrency) }
@@ -110,13 +103,10 @@ struct ServerView: View {
             SettingRow(title: "Max tokens") { NumberField(value: $model.draft.maxTokens) }
         case .model:
             SettingRow(title: "Model") {
-                Picker("", selection: Binding(get: { model.draft.modelID }, set: { model.select(model: $0) })) {
-                    if !model.installed.contains(where: { $0.id == model.draft.modelID }) {
-                        Text(model.draft.modelID.isEmpty ? "None" : model.draft.modelID).tag(model.draft.modelID)
-                    }
-                    ForEach(model.installed) { Text($0.meta.displayName).tag($0.id) }
-                }
-                .labelsHidden().frame(width: 270)
+                Dropdown(options: (model.installed.contains(where: { $0.id == model.draft.modelID }) ? [] : [(model.draft.modelID, model.draft.modelID.isEmpty ? "None" : model.draft.modelID)])
+                            + model.installed.map { ($0.id, $0.meta.displayName) },
+                         selection: Binding(get: { model.draft.modelID }, set: { model.select(model: $0) }), width: 270,
+                         detail: { id in id == model.activeModelID && model.isRunning ? "Loaded" : nil })
             }
             ToggleRow(title: "Thinking", detail: "Turn off for faster, shorter replies",
                       isOn: Binding(get: { model.draft.chatTemplateArgs == nil },
@@ -130,19 +120,12 @@ struct ServerView: View {
             ToggleRow(title: "Trust remote code", isOn: $model.draft.trustRemoteCode)
         case .network:
             SettingRow(title: "Host") {
-                Picker("", selection: $model.draft.host) {
-                    Text("This Mac only").tag("127.0.0.1")
-                    Text("Local network").tag("0.0.0.0")
-                }
-                .labelsHidden().frame(width: 150)
+                Dropdown(options: [("127.0.0.1", "This Mac only"), ("0.0.0.0", "Local network")], selection: $model.draft.host, width: 150)
             }
             SettingRow(title: "Port") { NumberField(value: $model.draft.port) }
             SettingRow(title: "Allowed origins") { TextBox(placeholder: "*", text: $model.draft.allowedOrigins, width: 200) }
             SettingRow(title: "Log level") {
-                Picker("", selection: $model.draft.logLevel) {
-                    ForEach(["DEBUG", "INFO", "WARNING", "ERROR"], id: \.self) { Text($0).tag($0) }
-                }
-                .labelsHidden().frame(width: 120)
+                Dropdown(options: ["DEBUG", "INFO", "WARNING", "ERROR"].map { ($0, $0) }, selection: $model.draft.logLevel, width: 120)
             }
             SettingRow(title: "Extra arguments") { TextBox(placeholder: "--flag value", text: $model.draft.extraArguments) }
         }
