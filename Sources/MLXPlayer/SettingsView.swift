@@ -7,8 +7,11 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(Navigator.self) private var nav
     private var tab: Binding<Tab> { Binding(get: { nav.settingsTab }, set: { nav.settingsTab = $0 }) }
-    @State private var installNote: String?
-    @State private var mcpState: AppModel.MCPRegistration = .notInstalled
+    @State private var statuses: [AgentStatus] = []
+    @State private var busy: AgentKind?
+    @State private var restartHint: AgentKind?
+    @State private var agentError: String?
+    private let server = AgentIntegrations.serverPath()
     @State private var tokenDraft = ""
     @State private var tokenSaved = HFToken.isSaved
 
@@ -72,7 +75,6 @@ struct SettingsView: View {
 
     private var agents: some View {
         @Bindable var model = model
-        let command = model.claudeMCPCommand()
         return HStack(alignment: .top, spacing: 14) {
             Card {
                 VStack(spacing: 0) {
@@ -85,24 +87,29 @@ struct SettingsView: View {
                     SettingRow(title: "Always ask above") {
                         SliderField(value: $model.app.largeDownloadGB, range: 1...100, step: 1, format: "%.0f GB")
                     }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label2("Add to Claude Code").padding(.top, 10)
-                        CodeBlock(text: command, height: 56)
+                    VStack(alignment: .leading, spacing: 0) {
                         HStack {
-                            Button("Copy") { model.copy(command) }.buttonStyle(.pill)
-                            switch mcpState {
-                            case .notInstalled:
-                                Button("Install") { runClaude(command) }.buttonStyle(.pillPrimary)
-                            case .outdated:
-                                Button("Update") { runClaude("claude mcp remove mlxplayer -s local; claude mcp remove mlxplayer -s user; " + command) }
-                                    .buttonStyle(.pillPrimary)
-                            case .installed:
-                                Label("Installed", systemImage: "checkmark.circle.fill").font(.system(size: 12.5)).foregroundStyle(Color.good)
-                                Button("Remove") { runClaude("claude mcp remove mlxplayer -s local; claude mcp remove mlxplayer -s user") }
-                                    .buttonStyle(.pill)
-                            }
-                            if let installNote { Text(installNote).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1) }
+                            Label2("Connect an agent")
+                            Spacer()
+                            Button("Rescan") { scan() }.buttonStyle(.pill)
+                        }.padding(.top, 10)
+                        if !FileManager.default.isExecutableFile(atPath: server) {
+                            Text("The MCP server was not found at \(server). Move MLX Player into Applications to connect agents.")
+                                .font(.system(size: 11.5)).foregroundStyle(Color.warn).padding(.vertical, 6)
                         }
+                        ForEach(statuses) { st in agentRow(st) }
+                        if let k = restartHint {
+                            Text("Restart \(k.name) to load the new tools.").font(.system(size: 11.5)).foregroundStyle(Color.accentIndigo).padding(.top, 6)
+                        }
+                        if let agentError { Text(agentError).font(.system(size: 11.5)).foregroundStyle(Color.bad).padding(.top, 6) }
+                        DisclosureGroup("Set up another agent manually") {
+                            VStack(alignment: .leading, spacing: 6) {
+                                CodeBlock(text: model.claudeMCPCommand(), height: 56)
+                                CodeBlock(text: "{ \"mcpServers\": { \"mlxplayer\": { \"command\": \"\(server)\" } } }", height: 56)
+                                Button("Copy command") { model.copy(model.claudeMCPCommand()) }.buttonStyle(.pill)
+                            }.padding(.top, 6)
+                        }
+                        .font(.system(size: 12.5)).padding(.top, 8)
                     }
                 }
             }
@@ -120,7 +127,7 @@ struct SettingsView: View {
             }
             .frame(width: 400)
         }
-        .onAppear { mcpState = model.mcpRegistration() }
+        .onAppear { scan() }
     }
 
     private var mlx: some View {
@@ -148,25 +155,56 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Runs a `claude mcp` command through a login shell so PATH matches the user's terminal, then re-reads the state.
-    private func runClaude(_ command: String) {
-        installNote = nil
-        Task.detached {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            p.arguments = ["-lc", command]
-            let pipe = Pipe()
-            p.standardError = pipe; p.standardOutput = pipe
-            do {
-                try p.run(); p.waitUntilExit()
-                let ok = p.terminationStatus == 0
-                await MainActor.run {
-                    mcpState = model.mcpRegistration()
-                    installNote = ok ? nil : "Failed. Copy the command instead."
-                }
-            } catch {
-                await MainActor.run { installNote = "Claude Code not found" }
+    private func agentRow(_ st: AgentStatus) -> some View {
+        let missing = !FileManager.default.isExecutableFile(atPath: server)
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(st.kind.name).font(.system(size: 13, weight: .medium))
+                Text(detail(st)).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(2)
             }
+            Spacer(minLength: 8)
+            if busy == st.kind { ProgressView().controlSize(.small) }
+            else {
+                switch st.state {
+                case .notDetected: EmptyView()
+                case .available:
+                    Button("Connect") { run(st.kind, install: true) }.buttonStyle(.pillPrimary).disabled(missing || busy != nil)
+                case .connected:
+                    Button("Disconnect") { run(st.kind, install: false) }.buttonStyle(.pill).disabled(busy != nil)
+                case .outdated:
+                    Button("Update") { run(st.kind, install: true) }.buttonStyle(.pillPrimary).disabled(missing || busy != nil)
+                    Button("Disconnect") { run(st.kind, install: false) }.buttonStyle(.pill).disabled(busy != nil)
+                }
+            }
+        }
+        .padding(.vertical, 7)
+    }
+
+    private func detail(_ st: AgentStatus) -> String {
+        switch st.state {
+        case .notDetected: "Not found on this Mac."
+        case .available: "Found. Not connected yet."
+        case .connected: st.kind.needsRestart ? "Connected. Restart the app after changes." : "Connected."
+        case .outdated(let old): "Points to \(old). Update it to use this copy."
+        }
+    }
+
+    private func scan() {
+        Task {
+            let found = await Task.detached { AgentIntegrations.scan(serverPath: server) }.value
+            statuses = found
+        }
+    }
+
+    private func run(_ kind: AgentKind, install: Bool) {
+        busy = kind; agentError = nil; restartHint = nil
+        Task {
+            do {
+                if install { try await AgentIntegrations.install(kind, serverPath: server) } else { try await AgentIntegrations.remove(kind) }
+                if install && kind.needsRestart { restartHint = kind }
+            } catch { agentError = "\(kind.name): \(error.localizedDescription)" }
+            statuses = await Task.detached { AgentIntegrations.scan(serverPath: server) }.value
+            busy = nil
         }
     }
 }

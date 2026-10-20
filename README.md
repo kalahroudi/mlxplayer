@@ -117,7 +117,7 @@ The MCP server is `mlxplayer-mcp` (stdio), bundled at `MLX Player.app/Contents/M
 | `stop_server` | Stop the server and free memory | Yes |
 | `delete_model` | Delete a downloaded model | Always |
 
-The app can also register the MCP server for Claude Code itself: Settings > Agents (MCP) > Install. Control calls go through a loopback API protected by a bearer token (`control.json`, mode 0600), and actions that change state show an approval dialog.
+The app detects Claude Code, Claude Desktop, Cursor, Windsurf, Gemini CLI and Codex CLI and connects or disconnects each with one click: Settings > Agents (MCP). It uses the agent's own CLI where it has one and otherwise edits its config file (keeping a one-time backup). Control calls go through a loopback API protected by a bearer token (`control.json`, mode 0600), and actions that change state show an approval dialog.
 
 ## Development
 
@@ -132,7 +132,7 @@ Layout:
 
 | Path | Contents |
 |---|---|
-| `Sources/MLXPlayerCore` | UI-free logic: hardware, advisor, installer, server supervisor, lazy proxy, usage, memory policy, Hugging Face client, MCP |
+| `Sources/MLXPlayerCore` | UI-free logic: hardware, advisor, installer, server supervisor, lazy proxy, usage, memory policy, Hugging Face client, MCP, agent integrations |
 | `Sources/MLXPlayer` | The macOS app (SwiftUI + AppKit) |
 | `Sources/mlxplayer-mcp` | Stdio MCP server |
 | `scripts/` | Bundle, DMG and notarization scripts |
