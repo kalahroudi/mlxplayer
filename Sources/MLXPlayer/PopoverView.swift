@@ -4,7 +4,6 @@ import MLXPlayerCore
 struct PopoverView: View {
     @Environment(AppModel.self) private var model
     @Environment(Navigator.self) private var nav
-    @Environment(\.openWindow) private var openWindow
     @State private var query = ""
     @State private var today = UsageSummary()
     @State private var copied = false
@@ -25,7 +24,7 @@ struct PopoverView: View {
             if let info = model.updater.available {
                 Button {
                     nav.settingsTab = .updates
-                    openMain(.settings, nav: nav, open: openWindow)
+                    openMain(.settings, nav: nav)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.accentIndigo)
@@ -84,7 +83,7 @@ struct PopoverView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Set up MLX").font(.system(size: 13, weight: .semibold))
                 Text("Installs mlx-lm in its own folder.").font(.system(size: 11.5)).foregroundStyle(.secondary)
-                Button("Set up") { model.showSetup = true; openMain(nil, nav: nav, open: openWindow) }
+                Button("Set up") { model.showSetup = true; openMain(nil, nav: nav) }
                     .buttonStyle(.pillPrimary)
             }
         }
@@ -114,7 +113,7 @@ struct PopoverView: View {
                     }
                 } else {
                     Text("No model yet").font(.system(size: 13, weight: .semibold))
-                    Button("Find a model") { openMain(.discover, nav: nav, open: openWindow) }.buttonStyle(.pillPrimary)
+                    Button("Find a model") { openMain(.discover, nav: nav) }.buttonStyle(.pillPrimary)
                 }
             }
         }
@@ -224,7 +223,7 @@ struct PopoverView: View {
                 .onSubmit {
                     model.searchText = query
                     Task { await model.search() }
-                    openMain(.discover, nav: nav, open: openWindow)
+                    openMain(.discover, nav: nav)
                     query = ""
                 }
         }
@@ -234,8 +233,8 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button("Open") { openMain(.server, nav: nav, open: openWindow) }.buttonStyle(.pill(height: 26))
-            Button("Logs") { openMain(.logs, nav: nav, open: openWindow) }.buttonStyle(.pill(height: 26))
+            Button("Open") { openMain(.server, nav: nav) }.buttonStyle(.pill(height: 26))
+            Button("Logs") { openMain(.logs, nav: nav) }.buttonStyle(.pill(height: 26))
             Spacer()
             Button("Quit") { Task { await model.stopServer(); NSApp.terminate(nil) } }.buttonStyle(.pill(height: 26))
         }

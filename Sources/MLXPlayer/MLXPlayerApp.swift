@@ -28,41 +28,135 @@ final class Navigator {
     var settingsTab: SettingsView.Tab = .general
 }
 
-extension Notification.Name { static let openMainWindow = Notification.Name("MLXPlayer.openMainWindow") }
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Clicking the Dock icon with no window open brings the main window back.
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { NotificationCenter.default.post(name: .openMainWindow, object: nil) }
-        return true
-    }
+/// Owns the menu bar item, its popover and the main window. A real `NSStatusItem` + `NSPopover` gives the
+/// standard arrow attached to the icon; SwiftUI's `MenuBarExtra` window style draws a detached panel instead.
+@MainActor
+final class AppController: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
+    static let shared = AppController()
+    let model = AppModel()
+    let nav = Navigator()
+    private var statusItem: NSStatusItem?
+    private let popover = NSPopover()
+    private var mainWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Menu bar only; also covers `swift run` where Info.plist has no LSUIElement.
+        // Menu bar only until a window opens; also covers `swift run` where Info.plist has no LSUIElement.
         NSApp.setActivationPolicy(.accessory)
         if CommandLine.arguments.contains("--snapshot") {
             Task { @MainActor in
                 await Snapshot.run(args: CommandLine.arguments)
                 exit(0)
             }
+            return
         }
+        setUpStatusItem()
+        model.launch()
+        if model.showSetup { showMain() }
+        // Scripted check: MLX_SHOW_POPOVER=1 opens the popover and writes where it landed.
+        if ProcessInfo.processInfo.environment["MLX_SHOW_POPOVER"] == "1" {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                togglePopover(nil)
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                let w = popover.contentViewController?.view.window
+                let b = statusItem?.button?.window?.frame
+                let line = "shown=\(popover.isShown) popover=\(String(describing: w?.frame)) button=\(String(describing: b)) size=\(popover.contentSize)\n"
+                try? line.write(toFile: NSTemporaryDirectory() + "mlx-popover.txt", atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
+    /// Clicking the Dock icon with no window open brings the main window back.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showMain() }
+        return true
+    }
+
+    // MARK: Menu bar
+
+    private func setUpStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = item
+        item.button?.target = self
+        item.button?.action = #selector(togglePopover(_:))
+        item.button?.imagePosition = .imageLeading
+
+        let host = NSHostingController(rootView: PopoverView().environment(model).environment(nav))
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        refreshStatusItem()
+    }
+
+    /// Re-reads the model whenever what the icon shows changes (Observation drives it, no polling).
+    private func refreshStatusItem() {
+        let state = withObservationTracking {
+            (model.isRunning, model.serverState.isStarting, model.lastError != nil, model.menuBarText, model.app.appearance)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.refreshStatusItem() }
+        }
+        MainWindow.apply(state.4)
+        guard let button = statusItem?.button else { return }
+        button.image = Brand.menuBarImage(dim: !state.0 && !state.1, loading: state.1, attention: state.2)
+        if let text = state.3 {
+            button.attributedTitle = NSAttributedString(string: " " + text, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)])
+        } else {
+            button.title = ""
+        }
+    }
+
+    @objc private func togglePopover(_ sender: Any?) {
+        if popover.isShown { popover.performClose(sender); return }
+        guard let button = statusItem?.button else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
+    }
+
+    func closePopover() { if popover.isShown { popover.performClose(nil) } }
+
+    // MARK: Main window
+
+    func showMain(_ screen: Screen? = nil) {
+        if let screen { nav.screen = screen }
+        closePopover()
+        DockPresence.show()
+        if mainWindow == nil {
+            let hosting = NSHostingController(rootView: MainWindow().environment(model).environment(nav).frame(minWidth: 1100, minHeight: 740))
+            let window = NSWindow(contentViewController: hosting)
+            window.title = "MLX Player"
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            window.setContentSize(NSSize(width: 1240, height: 820))
+            window.center()
+            window.isReleasedWhenClosed = false
+            window.setFrameAutosaveName("MLXPlayerMain")
+            window.delegate = self
+            mainWindow = window
+        }
+        mainWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        DispatchQueue.main.async { DockPresence.hideIfNoWindows() }
     }
 }
 
 @main
 struct MLXPlayerApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AppModel()
-    @State private var nav = Navigator()
+    @NSApplicationDelegateAdaptor(AppController.self) private var controller
 
     init() {
-        // Build-time helper: `MLXPlayer --write-iconset DIR` renders the app icon, then exits.
         let args = CommandLine.arguments
         // The updater runs this on a freshly built app before replacing the installed one.
         if args.contains("--self-test") {
             print("ok \(Bundle.main.object(forInfoDictionaryKey: "MLXCommit") as? String ?? "unknown")")
             exit(0)
         }
+        // Build-time helper: `MLXPlayer --write-iconset DIR` renders the app icon, then exits.
         if let i = args.firstIndex(of: "--write-iconset"), i + 1 < args.count {
             writeIconSet(to: URL(fileURLWithPath: args[i + 1]))
             exit(0)
@@ -70,62 +164,14 @@ struct MLXPlayerApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra {
-            PopoverView()
-                .environment(model)
-                .environment(nav)
-        } label: {
-            MenuBarLabel()
-                .environment(model)
-        }
-        .menuBarExtraStyle(.window)
-
-        Window("MLX Player", id: "main") {
-            MainWindow()
-                .onAppear { DockPresence.show() }
-                .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
-                    guard (note.object as? NSWindow)?.title == "MLX Player" else { return }
-                    DispatchQueue.main.async { DockPresence.hideIfNoWindows() }
-                }
-                .environment(model)
-                .environment(nav)
-                .frame(minWidth: 1100, minHeight: 740)
-        }
-        .defaultSize(width: 1240, height: 820)
-    }
-}
-
-struct MenuBarLabel: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(nsImage: Brand.menuBarImage(dim: !model.isRunning && !model.serverState.isStarting,
-                                              loading: model.serverState.isStarting,
-                                              attention: model.lastError != nil))
-            if let text = model.menuBarText { Text(text).monospacedDigit() }
-        }
-        .task {
-            model.launch()
-            if model.showSetup { show() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in show() }
-    }
-
-    private func show() {
-        openWindow(id: "main")
-        NSApp.activate(ignoringOtherApps: true)
+        Settings { EmptyView() }
     }
 }
 
 /// Opens the main window on a screen. Used by the popover.
 @MainActor
-func openMain(_ screen: Screen?, nav: Navigator, open: OpenWindowAction) {
-    if let screen { nav.screen = screen }
-    DockPresence.show()
-    open(id: "main")
-    NSApp.activate(ignoringOtherApps: true)
+func openMain(_ screen: Screen?, nav: Navigator, open: Any? = nil) {
+    AppController.shared.showMain(screen)
 }
 
 /// A menu bar app that also appears in the Dock (and Cmd-Tab) while its window is open.
