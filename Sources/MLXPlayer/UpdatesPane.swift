@@ -25,13 +25,28 @@ struct UpdatesPane: View {
                                 Button { Task { await u.install() } } label: { Text("Update to \(info.label)") }
                                     .buttonStyle(.pillPrimary).disabled(u.busy)
                             }
-                            Button("Check") { Task { await u.check() } }.buttonStyle(.pill).disabled(u.busy)
+                            Button("Check") { Task { await u.check(); if case .upToDate? = u.status { model.notify(.success, "You're up to date", detail: u.build.version + " · " + u.build.shortCommit) } } }.buttonStyle(.pill).disabled(u.busy)
                         }
                     }
                 }
             }
             .frame(maxWidth: 700)
 
+            if u.busy || u.progress != nil {
+                Card {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if case .working(let step) = u.phase { Text(step).font(.system(size: 12.5, weight: .medium)) }
+                        if let p = u.progress { ProgressBar(fraction: p, color: .accentIndigo); Text("\(Int(p * 100))%").font(.system(size: 11.5)).foregroundStyle(.secondary) }
+                        else { ProgressView().progressViewStyle(.linear) }
+                        Text("Keep the app open. The model server restarts with the new version.").font(.system(size: 11.5)).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: 700)
+            }
+            if let done = u.lastResult {
+                Label(done, systemImage: "checkmark.circle.fill").font(.system(size: 12.5)).foregroundStyle(Color.good)
+                    .frame(maxWidth: 700, alignment: .leading)
+            }
             if let notice = u.notice {
                 Text(notice).font(.system(size: 12.5)).foregroundStyle(Color.warn).frame(maxWidth: 700, alignment: .leading)
             }
@@ -46,8 +61,14 @@ struct UpdatesPane: View {
                 }
                 .frame(maxWidth: 700)
             }
-            if !u.log.isEmpty {
-                LogPane(lines: u.log, height: 170).frame(maxWidth: 700)
+            let lines = u.log.isEmpty ? u.savedLog : u.log
+            if !lines.isEmpty {
+                HStack {
+                    Label2(u.log.isEmpty ? "Last update log" : "Update log")
+                    Spacer()
+                    Button("Copy") { model.copy(lines.joined(separator: "\n")) }.buttonStyle(.pill(height: 24))
+                }.frame(maxWidth: 700)
+                LogPane(lines: lines, height: 170).frame(maxWidth: 700)
             }
         }
     }

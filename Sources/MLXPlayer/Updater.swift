@@ -13,7 +13,13 @@ final class Updater {
     var status: UpdateStatus?
     var lastChecked: Date?
     var notice: String?
-    var log: [String] = []
+    var log: [String] = [] { didSet { persist(newLines: Array(log.dropFirst(min(oldValue.count, log.count)))) } }
+    /// 0...1 while a download is running, nil when the step has no measurable progress.
+    var progress: Double?
+    /// Shown once after a restart: what the last update did.
+    var lastResult: String?
+    /// Set by AppModel to raise a toast.
+    var onResult: (_ success: Bool, _ text: String) -> Void = { _, _ in }
     let build: BuildInfo
     private let paths: AppPaths
     private var nextAutoCheck = Date()
@@ -32,6 +38,28 @@ final class Updater {
     var isBundled: Bool { Bundle.main.bundlePath.hasSuffix(".app") && build.commit != nil }
     var busy: Bool { if case .checking = phase { return true }; if case .working = phase { return true }; return false }
     var available: UpdateInfo? { if case .available(let i)? = status { return i }; return nil }
+    private var logURL: URL { paths.root.appendingPathComponent("update.log") }
+    private var pendingURL: URL { paths.root.appendingPathComponent("update-pending.json") }
+
+    /// Keeps the log on disk, so what happened is still readable after the app restarted.
+    private func persist(newLines: [String]) {
+        guard !newLines.isEmpty, let data = (newLines.joined(separator: "\n") + "\n").data(using: .utf8) else { return }
+        if let h = try? FileHandle(forWritingTo: logURL) { h.seekToEndOfFile(); h.write(data); try? h.close() }
+        else { try? data.write(to: logURL) }
+    }
+
+    private func beginRun(to target: String) {
+        log = []
+        try? FileManager.default.removeItem(at: logURL)
+        log.append("Update \(build.shortCommit) → \(target) at \(Date().formatted())")
+        let info: [String: String] = ["from": build.cleanCommit ?? build.version, "fromVersion": build.version, "to": target]
+        try? JSONSerialization.data(withJSONObject: info).write(to: pendingURL)
+    }
+
+    /// The previous run's log, for the Updates pane.
+    var savedLog: [String] {
+        (try? String(contentsOf: logURL, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? []
+    }
     private var markerURL: URL { paths.root.appendingPathComponent("update-ok") }
 
     // MARK: Launch bookkeeping
@@ -39,11 +67,32 @@ final class Updater {
     /// Tells a pending swap script that this version started fine, and surfaces a rollback if one happened.
     func confirmLaunch() {
         // Leftovers of a finished update.
-        for name in ["staging", "swap.sh", "swap.log"] { try? FileManager.default.removeItem(at: paths.root.appendingPathComponent(name)) }
+        let fm = FileManager.default
+        let swapLog = (try? String(contentsOf: paths.root.appendingPathComponent("swap.log"), encoding: .utf8)) ?? ""
+        for name in ["staging", "swap.sh", "swap.log"] { try? fm.removeItem(at: paths.root.appendingPathComponent(name)) }
         let failed = URL(fileURLWithPath: markerURL.path + ".failed")
-        if let text = try? String(contentsOf: failed, encoding: .utf8) {
-            notice = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            try? FileManager.default.removeItem(at: failed)
+        let failure = (try? String(contentsOf: failed, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? fm.removeItem(at: failed)
+        if let data = try? Data(contentsOf: pendingURL),
+           let pending = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+            try? fm.removeItem(at: pendingURL)
+            let now = build.cleanCommit ?? build.version
+            let target = pending["to"] ?? ""
+            let arrived = failure == nil && (now.hasPrefix(target) || target.hasPrefix(now) || "v\(build.version)" == target
+                                             || (pending["from"] != now && pending["fromVersion"] != build.version))
+            if arrived {
+                lastResult = "Updated to \(build.version) · \(build.shortCommit)"
+                log.append("Started fine: \(build.version) · \(build.shortCommit)")
+                DispatchQueue.main.async { [self] in onResult(true, lastResult ?? "Updated") }
+            } else {
+                let why = failure ?? "The new version didn't replace the old one."
+                notice = why
+                log.append("✗ \(why)")
+                if !swapLog.isEmpty { log.append(contentsOf: swapLog.split(separator: "\n").map(String.init)) }
+                DispatchQueue.main.async { [self] in onResult(false, why) }
+            }
+        } else if let failure {
+            notice = failure
         }
         // Lets scripts and tests drive an update without clicking: MLX_UPDATE_NOW=1 open "MLX Player.app"
         if ProcessInfo.processInfo.environment["MLX_UPDATE_NOW"] == "1" {
@@ -86,7 +135,7 @@ final class Updater {
     func install() async {
         guard let info = available, !busy else { return }
         if let release = info.release { await installRelease(release); return }
-        log = []
+        beginRun(to: info.sha)
         do {
             try preflight()
             phase = .working("Getting the source")
@@ -115,7 +164,7 @@ final class Updater {
 
     /// Prebuilt path: download the disk image, check its hash, unpack, verify, swap. No Xcode tools needed.
     private func installRelease(_ release: ReleaseInfo) async {
-        log = []
+        beginRun(to: release.tag)
         let fm = FileManager.default
         let staging = paths.root.appendingPathComponent("staging", isDirectory: true)
         let mount = staging.appendingPathComponent("mnt", isDirectory: true)
@@ -127,9 +176,7 @@ final class Updater {
 
             phase = .working("Downloading \(release.tag)")
             let dmg = staging.appendingPathComponent(release.dmgName)
-            let (tmp, resp) = try await URLSession.shared.download(from: release.dmgURL)
-            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.network("The download failed.") }
-            try fm.moveItem(at: tmp, to: dmg)
+            try await download(release.dmgURL, to: dmg)
 
             phase = .working("Checking the download")
             try await verifyChecksum(of: dmg, release: release)
@@ -158,6 +205,29 @@ final class Updater {
             phase = .failed(error.localizedDescription)
             log.append("✗ \(error.localizedDescription)")
         }
+    }
+
+    /// Streams the file to disk so the pane can show a real progress bar.
+    private func download(_ url: URL, to file: URL) async throws {
+        let (bytes, resp) = try await URLSession.shared.bytes(from: url)
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.network("The download failed.") }
+        let total = resp.expectedContentLength
+        FileManager.default.createFile(atPath: file.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: file)
+        defer { try? handle.close(); progress = nil }
+        var buffer = Data(); buffer.reserveCapacity(1 << 20)
+        var received: Int64 = 0
+        progress = 0
+        for try await byte in bytes {
+            buffer.append(byte)
+            if buffer.count >= 1 << 20 {
+                try handle.write(contentsOf: buffer); received += Int64(buffer.count); buffer.removeAll(keepingCapacity: true)
+                if total > 0 { progress = Double(received) / Double(total) }
+                try Task.checkCancellation()
+            }
+        }
+        if !buffer.isEmpty { try handle.write(contentsOf: buffer); received += Int64(buffer.count) }
+        log.append("Downloaded \(ByteCountFormatter.string(fromByteCount: received, countStyle: .file)).")
     }
 
     /// Compares the download with the release's SHA256SUMS. Without a published sum it only warns.

@@ -52,6 +52,21 @@ final class SupervisorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.serverPidFile.path))
     }
 
+    /// The app mirrors these callbacks in order; the last one must always match the supervisor's own state.
+    func testStateCallbacksEndWhereTheSupervisorIs() async throws {
+        final class Seen: @unchecked Sendable { let lock = NSLock(); var states: [ServerState] = []
+            func add(_ s: ServerState) { lock.lock(); states.append(s); lock.unlock() } }
+        let seen = Seen()
+        let sup = ServerSupervisor(paths: paths, logs: LogBuffer()) { seen.add($0) }
+        try await sup.start(settings: ServerSettings(modelID: "m/x"), port: freePort(), supportedFlags: nil, customExecutable: try fakeServer())
+        XCTAssertEqual(seen.states.last, .running)
+        XCTAssertTrue(seen.states.first.map { if case .starting = $0 { return true } else { return false } } ?? false)
+        await sup.stop()
+        XCTAssertEqual(seen.states.last, .stopped)
+        let final = await sup.state
+        XCTAssertEqual(final, .stopped)
+    }
+
     func testStopDuringLoadCancelsTheStart() async throws {
         let sup = supervisor(), port = freePort()
         let exe = try fakeServer(before: "sleep 30")

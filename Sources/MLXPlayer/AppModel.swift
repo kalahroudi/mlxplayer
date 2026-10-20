@@ -26,6 +26,9 @@ final class AppModel {
     private var failures: [Date] = []
     /// Readable from the proxy's threads without hopping to the main actor.
     private let runningFlag = AtomicFlag()
+    /// Supervisor state changes, delivered to the main actor strictly in order.
+    private let stateStream: AsyncStream<ServerState>
+    private let stateSink: AsyncStream<ServerState>.Continuation
 
     // MARK: Settings
     var app: AppSettings {
@@ -112,8 +115,12 @@ final class AppModel {
         self.app = store.app
         self.draft = ServerSettings(modelID: store.app.lastModelID ?? "")
         self.isInstalled = installer.isInstalled || (store.app.customServerPath != nil)
-        self.supervisor = ServerSupervisor(paths: paths, logs: logs) { [weak self] state in
-            Task { @MainActor in self?.handle(state: state) }
+        let (stream, sink) = AsyncStream<ServerState>.makeStream()
+        self.stateStream = stream
+        self.stateSink = sink
+        self.supervisor = ServerSupervisor(paths: paths, logs: logs) { state in sink.yield(state) }
+        updater.onResult = { [weak self] ok, text in
+            self?.notify(ok ? .success : .error, ok ? "Update installed" : "Update didn't apply", detail: text, action: "Details", screen: .settings)
         }
         updater.beforeQuit = { [weak self] in await self?.supervisor.stop() }
         logs.onAppend = { [weak self] line in
@@ -134,6 +141,10 @@ final class AppModel {
             note("Cleaned up a leftover model server")
         }
         let sup = supervisor!
+        Task { @MainActor [weak self] in
+            guard let stream = self?.stateStream else { return }
+            for await state in stream { self?.handle(state: state) }
+        }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { _ in
             sup.killNow()
         }
@@ -181,6 +192,15 @@ final class AppModel {
             notify(.error, "Model failed to start", detail: message, action: "Show logs", screen: .logs)
         }
         if state == .stopped || state == .stopping { uptime = 0 }
+    }
+
+    /// Safety net: if a state change was missed, the supervisor is the source of truth.
+    private func reconcileServerState() async {
+        let actual = await supervisor.state
+        if actual != serverState { handle(state: actual) }
+        if actual == .running, let id = await supervisor.activeSettings?.modelID, activeModelID != id {
+            activeModelID = id
+        }
     }
 
     // MARK: Derived
@@ -657,6 +677,7 @@ final class AppModel {
             serverMemoryBytes = await supervisor.footprintBytes
             uptime = await supervisor.uptime ?? 0
             await supervisor.checkAlive()
+            await reconcileServerState()
         }
         pressureHistory.append(Double(memoryPressure.rawValue))
         if pressureHistory.count > 360 { pressureHistory.removeFirst() }

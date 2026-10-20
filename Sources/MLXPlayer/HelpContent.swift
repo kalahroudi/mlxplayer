@@ -41,6 +41,13 @@ enum HelpContent {
         ("Swap", "Memory pushed to disk. Heavy swap makes everything slow."),
     ]
 
+    static let chat: Entries = [
+        ("Quick chat", "A short conversation to check the loaded model works. It uses the same endpoint as your apps."),
+        ("Loading", "If the model is not loaded, the first message loads it. That can take a few seconds."),
+        ("Speed", "Chunks per second while the answer streams. Close to tokens per second."),
+        ("History", "Kept only in this window. Clear starts over."),
+    ]
+
     static let logs: Entries = [
         ("Logs", "Output from the model server, installer and downloads. Errors are red, warnings amber."),
         ("Filter", "Shows only lines containing your text."),

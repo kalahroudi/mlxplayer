@@ -3,12 +3,13 @@ import AppKit
 import MLXPlayerCore
 
 enum Screen: String, CaseIterable, Identifiable {
-    case overview, server, library, discover, advisor, memory, usage, logs, settings
+    case overview, chat, server, library, discover, advisor, memory, usage, logs, settings
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     var symbol: String {
         switch self {
         case .overview: return "gauge.with.dots.needle.67percent"
+        case .chat: return "bubble.left.and.bubble.right"
         case .server: return "server.rack"
         case .library: return "books.vertical"
         case .discover: return "magnifyingglass"
@@ -27,7 +28,15 @@ final class Navigator {
     var settingsTab: SettingsView.Tab = .general
 }
 
+extension Notification.Name { static let openMainWindow = Notification.Name("MLXPlayer.openMainWindow") }
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Clicking the Dock icon with no window open brings the main window back.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { NotificationCenter.default.post(name: .openMainWindow, object: nil) }
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu bar only; also covers `swift run` where Info.plist has no LSUIElement.
         NSApp.setActivationPolicy(.accessory)
@@ -73,6 +82,11 @@ struct MLXPlayerApp: App {
 
         Window("MLX Player", id: "main") {
             MainWindow()
+                .onAppear { DockPresence.show() }
+                .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+                    guard (note.object as? NSWindow)?.title == "MLX Player" else { return }
+                    DispatchQueue.main.async { DockPresence.hideIfNoWindows() }
+                }
                 .environment(model)
                 .environment(nav)
                 .frame(minWidth: 1100, minHeight: 740)
@@ -96,6 +110,7 @@ struct MenuBarLabel: View {
             model.launch()
             if model.showSetup { show() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in show() }
     }
 
     private func show() {
@@ -108,8 +123,26 @@ struct MenuBarLabel: View {
 @MainActor
 func openMain(_ screen: Screen?, nav: Navigator, open: OpenWindowAction) {
     if let screen { nav.screen = screen }
+    DockPresence.show()
     open(id: "main")
     NSApp.activate(ignoringOtherApps: true)
+}
+
+/// A menu bar app that also appears in the Dock (and Cmd-Tab) while its window is open.
+@MainActor
+enum DockPresence {
+    static func show() {
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.applicationIconImage = Brand.appIconImage(size: 512)
+        }
+    }
+
+    /// Back to menu-bar-only once the last real window closes.
+    static func hideIfNoWindows() {
+        let open = NSApp.windows.contains { $0.isVisible && $0.canBecomeMain && !($0 is NSPanel) && $0.level == .normal }
+        if !open { NSApp.setActivationPolicy(.accessory) }
+    }
 }
 
 extension ServerState {

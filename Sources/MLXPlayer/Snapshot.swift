@@ -23,6 +23,22 @@ enum Snapshot {
         model.app.sidebarCollapsed = collapse
         defer { model.app.sidebarCollapsed = wasCollapsed }
         if let format { model.filter.format = format }
+        if args.contains("popover") {
+            let pop = NSHostingView(rootView: PopoverView().environment(model).environment(nav).background(Color(nsColor: .windowBackgroundColor)))
+            pop.frame = NSRect(x: 0, y: 0, width: 340, height: pop.fittingSize.height)
+            let w = NSWindow(contentRect: pop.frame, styleMask: [.titled], backing: .buffered, defer: false)
+            w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            w.contentView = pop
+            w.orderFrontRegardless()
+            for _ in 0..<4 { model.sampleSystem(); try? await Task.sleep(for: .milliseconds(400)) }
+            pop.frame = NSRect(x: 0, y: 0, width: 340, height: pop.fittingSize.height)
+            pop.layoutSubtreeIfNeeded()
+            if let rep = pop.bitmapImageRepForCachingDisplay(in: pop.bounds) {
+                pop.cacheDisplay(in: pop.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("popover\(dark ? "-dark" : "").png"))
+            }
+            return
+        }
         let root = MainWindow().environment(model).environment(nav).frame(width: 1240, height: 820)
         let host = NSHostingView(rootView: root)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 820),

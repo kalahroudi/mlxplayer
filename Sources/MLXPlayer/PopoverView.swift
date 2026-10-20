@@ -18,6 +18,7 @@ struct PopoverView: View {
                 modelCard
                 endpointCard
                 tiles
+                systemCard
                 todayRow
                 switchList
             }
@@ -47,9 +48,13 @@ struct PopoverView: View {
         }
         .padding(14)
         .frame(width: 340)
-        .onAppear {
-            model.refreshInstalled()
-            today = model.usage.summary(.today)
+        .onAppear { model.refreshInstalled() }
+        .task {
+            // The popover stays alive while hidden, so keep its numbers fresh instead of reading them once.
+            while !Task.isCancelled {
+                today = model.usage.summary(.today)
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
         }
     }
 
@@ -153,6 +158,33 @@ struct PopoverView: View {
         }
     }
 
+    private var systemCard: some View {
+        let s = model.system
+        let hw = model.hardware
+        let mem = Double(s.memory.used) / Double(max(s.memory.total, 1))
+        let vram = Double(s.gpuMemoryBytes ?? 0) / Double(max(hw.gpuLimitBytes, 1))
+        return Card(padding: 10) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Label2("This Mac")
+                    Spacer()
+                    Text("Pressure \(model.memoryPressure.label)").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                meter("Memory", mem, "\(formatBytes(s.memory.used)) / \(formatBytes(s.memory.total))", mem > 0.9 ? .bad : (mem > 0.75 ? .warn : .good))
+                meter("GPU", s.gpu ?? 0, s.gpu.map { "\(Int($0 * 100))%" } ?? "–", .seriesTeal)
+                meter("VRAM", vram, "\(formatBytes(s.gpuMemoryBytes ?? 0)) / \(formatBytes(hw.gpuLimitBytes))", .accentIndigo)
+            }
+        }
+    }
+
+    private func meter(_ title: String, _ fraction: Double, _ value: String, _ color: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(title).font(.system(size: 11.5)).foregroundStyle(.secondary).frame(width: 52, alignment: .leading)
+            ProgressBar(fraction: min(max(fraction, 0), 1), color: color)
+            Text(value).font(.system(size: 11)).monospacedDigit().lineLimit(1).frame(width: 96, alignment: .trailing)
+        }
+    }
+
     private var todayRow: some View {
         HStack {
             Label2("Today")
@@ -163,13 +195,16 @@ struct PopoverView: View {
     }
 
     private var switchList: some View {
-        let others = model.installed.filter { $0.id != (model.activeModelID ?? model.app.lastModelID) }.prefix(4)
+        let loaded = model.isRunning ? model.activeModelID : nil
+        let cardID = model.activeModelID ?? model.app.lastModelID
+        let others = Array(model.installed.filter { loaded != nil || $0.id != cardID }.sorted { ($0.id == loaded ? 0 : 1) < ($1.id == loaded ? 0 : 1) }.prefix(4))
         return VStack(alignment: .leading, spacing: 2) {
             if !others.isEmpty { Label2("Switch model").padding(.bottom, 2) }
-            ForEach(Array(others)) { m in
-                Button { Task { await model.startServer(model: m.id) } } label: {
+            ForEach(others) { m in
+                Button { if m.id != loaded { Task { await model.startServer(model: m.id) } } } label: {
                     HStack {
                         Text(m.meta.displayName).font(.system(size: 12.5)).lineLimit(1)
+                        if m.id == loaded { Chip(text: "Loaded", tint: .good) }
                         Spacer()
                         Text(formatBytes(m.sizeBytes)).font(.system(size: 11)).foregroundStyle(.secondary)
                     }

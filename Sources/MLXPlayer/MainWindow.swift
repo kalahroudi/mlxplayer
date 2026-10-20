@@ -35,6 +35,7 @@ struct MainWindow: View {
     @ViewBuilder private var content: some View {
         switch nav.screen {
         case .overview: OverviewView()
+        case .chat: ChatView()
         case .server: ServerView()
         case .library: LibraryView()
         case .discover: DiscoverView()
