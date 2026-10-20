@@ -97,7 +97,7 @@
 <nav><div class="wrap">
   <a class="brand" href="#top"><img src="images/logo.png" alt="">MLX Player</a>
   <div class="links">
-    <a href="#why">Why</a><a href="#features">Features</a><a href="#screens">Screens</a><a href="#switching">Switching</a><a href="#install">Install</a><a href="#agents">Agents</a>
+    <a href="#why">Why</a><a href="#features">Features</a><a href="#screens">Screens</a><a href="#switching">Switching</a><a href="#network">Network</a><a href="#install">Install</a><a href="#agents">Agents</a>
     <a class="gh" href="https://github.com/kalahroudi/mlxplayer">GitHub</a>
   </div>
 </div></nav>
@@ -143,7 +143,7 @@
     <div class="card"><div class="ico">⚡</div><h3>One-click setup</h3><p>Installs <code>uv</code>, a private Python 3.12 and <code>mlx-lm</code> under Application Support. Nothing global.</p></div>
     <div class="card"><div class="ico">🔎</div><h3>Discover</h3><p>Search Hugging Face MLX models with size, quantization, capability and family filters, and a fit badge for your Mac.</p></div>
     <div class="card"><div class="ico">🧭</div><h3>Advisor</h3><p>Best overall, highest quality and fastest model for your job, with context size and headroom.</p></div>
-    <div class="card"><div class="ico">🔌</div><h3>Local endpoint</h3><p><code>http://127.0.0.1:8080/v1</code>, OpenAI-compatible. Streaming, usage metering and CORS handled by a lazy proxy.</p></div>
+    <div class="card"><div class="ico">🔌</div><h3>Local endpoint</h3><p><code>http://127.0.0.1:8080/v1</code>, OpenAI-compatible. Streaming, usage metering and CORS handled by a lazy proxy. Share it on your network or over Tailscale with one setting.</p></div>
     <div class="card"><div class="ico">🧠</div><h3>Memory aware</h3><p>Live memory, GPU, VRAM and CPU, a GPU wired limit control, and automatic responses to pressure.</p></div>
     <div class="card"><div class="ico">🔀</div><h3>Switch any time</h3><p>Pick a model from the sidebar, popover or library. A switch waits for running requests and restores the previous model if the new one fails.</p></div>
     <div class="card"><div class="ico">📈</div><h3>Usage</h3><p>Tokens, speed and clients by day. Old records are pruned after 30 days so nothing piles up.</p></div>
@@ -179,6 +179,21 @@
     <div class="card"><div class="n">2</div><div><h3>Failures roll back</h3><p>If the new model does not load, the previous one is brought back and you get a notice with a link to the logs.</p></div></div>
     <div class="card"><div class="n">3</div><div><h3>Clients can switch too</h3><p>With <b>Switch by request</b> on (Memory screen), the <code>model</code> field of a request loads that installed model. Turn it off and every request uses the loaded one.</p></div></div>
   </div>
+</section>
+
+<section id="network">
+  <div class="eyebrow">Other computers</div>
+  <h2>Run it on one Mac, use it from anywhere.</h2>
+  <p class="sub">Pick how far the endpoint reaches in <b>Server &gt; Network &gt; Host</b>. The app finds the right address and copies it for you. Nothing to look up or configure by hand.</p>
+  <div class="why">
+    <div class="card"><div class="n">1</div><div><h3>This Mac only</h3><p>The default. The endpoint is <code>http://127.0.0.1:8080/v1</code> and nothing else can reach it.</p></div></div>
+    <div class="card"><div class="n">2</div><div><h3>Local network</h3><p>Any device on your Wi-Fi or Ethernet can connect. The app copies this Mac's LAN URL, like <code>http://192.168.1.42:8080/v1</code>. There is no authentication, so use it on networks you trust, and allow incoming connections if macOS asks.</p></div></div>
+    <div class="card"><div class="n">3</div><div><h3>Tailscale</h3><p>Only your own Tailscale devices can connect, from anywhere. The app publishes real HTTPS through <code>tailscale serve</code> and copies <code>https://your-mac.your-tailnet.ts.net/v1</code>. If your tailnet has HTTPS certificates off, it tells you where to turn them on once and meanwhile copies the plain HTTP URL.</p></div></div>
+  </div>
+  <pre><button class="copy" data-copy>Copy</button>curl https://your-mac.your-tailnet.ts.net/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"default","messages":[{"role":"user","content":"Hello"}]}'</pre>
+  <p class="sub" style="margin-top:14px">The copied URL is in the Server screen, the menu bar popover and the snippets. Unknown model names such as <code>default</code> are sent to the loaded model, so most clients work as they are.</p>
 </section>
 
 <section id="install">

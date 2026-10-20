@@ -88,7 +88,43 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 Point any OpenAI-compatible client at `http://127.0.0.1:8080/v1` (any API key value works). The model loads on the first request.
 
-To reach it from another computer, set Server > Network > Host to "Local network" (the app copies this Mac's LAN URL) or "Tailscale" (only your tailnet devices can connect; the app publishes HTTPS with `tailscale serve` and copies your `https://*.ts.net` URL). Nothing to configure by hand.
+## Use it from other computers
+
+Run the model on one Mac and call it from another computer, a phone or an app on your network. Open **Server > Network > Host** and pick how far the endpoint reaches. The app works out the address for you and copies it, so there is nothing to look up or configure by hand.
+
+| Host | Who can connect | URL the app copies |
+|---|---|---|
+| **This Mac only** (default) | Only this Mac | `http://127.0.0.1:8080/v1` |
+| **Local network** | Any device on the same Wi-Fi or Ethernet | `http://192.168.1.42:8080/v1` (this Mac's LAN address) |
+| **Tailscale** | Only your own [Tailscale](https://tailscale.com) devices, from anywhere | `https://your-mac.your-tailnet.ts.net/v1` |
+
+The copied URL appears in the Server screen, the menu bar popover (**Copy URL**), the sidebar and the cURL, Python and environment snippets. Use it as the base URL of any OpenAI-compatible client, from the other computer:
+
+```sh
+curl https://your-mac.your-tailnet.ts.net/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"default","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+Model names the server does not know, like `default`, are sent to the loaded model, so most clients work without an exact model ID. The model loads on the first request, as usual.
+
+### Local network
+
+- The proxy listens on all interfaces, so other devices on the network can connect. The model server itself stays on loopback.
+- The app picks the address a neighbour would use: private ranges (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`) on Wi-Fi or Ethernet first, VPN and virtual interfaces after. If the Mac has several networks, only one is shown. Its `<computer-name>.local` name works too.
+- macOS may ask to allow incoming connections for MLX Player the first time. Click Allow, or other devices will time out.
+- There is **no authentication**: anyone on the network can use the endpoint and the memory it loads. Only turn this on for networks you trust. Prefer Tailscale otherwise.
+
+### Tailscale
+
+Needs the Tailscale app on this Mac, signed in. Nothing else to set up.
+
+- The app reads Tailscale's status, finds this Mac's MagicDNS name and publishes `https://<name>.ts.net` through `tailscale serve`, which forwards to the proxy. Tailscale issues the certificate, so clients get real HTTPS with no warnings.
+- Only devices on your tailnet can connect. Other devices on the Wi-Fi cannot, unlike Local network.
+- If Tailscale is off, the Tailscale URL row says so and the URL works once it is on again. The Tailscale option only shows in the list when Tailscale is installed.
+- **One-time setup in your tailnet:** HTTPS needs "HTTPS Certificates" turned on in the [Tailscale admin console](https://login.tailscale.com/admin/dns). Until then the app copies the plain `http://<name>.ts.net:8080/v1` URL (still encrypted by Tailscale) and shows a link to enable it. It retries by itself.
+- If something else already uses HTTPS port 443 in `tailscale serve`, the app leaves it alone and keeps the HTTP URL.
+- The HTTPS entry is removed when you switch the host back or quit the app. Entries you created yourself are never touched.
 
 ## Switch models
 
