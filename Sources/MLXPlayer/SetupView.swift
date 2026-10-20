@@ -37,7 +37,7 @@ struct SetupView: View {
                 }
             }
             if !model.installLog.isEmpty {
-                CodeBlock(text: model.installLog.suffix(40).joined(separator: "\n"), height: 110).frame(width: 520)
+                LogPane(lines: model.installLog, height: 150).frame(width: 520)
             }
         }
         .padding(30)

@@ -47,7 +47,7 @@ struct UpdatesPane: View {
                 .frame(maxWidth: 700)
             }
             if !u.log.isEmpty {
-                CodeBlock(text: u.log.suffix(40).joined(separator: "\n"), height: 150).frame(maxWidth: 700)
+                LogPane(lines: u.log, height: 170).frame(maxWidth: 700)
             }
         }
     }

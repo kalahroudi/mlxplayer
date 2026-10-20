@@ -129,7 +129,7 @@ struct SettingsView: View {
                     }
                 }
                 SettingRow(title: "Setup") { Button("Run again") { model.showSetup = true }.buttonStyle(.pill) }
-                if !model.installLog.isEmpty { CodeBlock(text: model.installLog.suffix(30).joined(separator: "\n"), height: 120).padding(.top, 8) }
+                if !model.installLog.isEmpty { LogPane(lines: model.installLog, height: 160).padding(.top, 8) }
             }
         }
         .frame(maxWidth: 640)

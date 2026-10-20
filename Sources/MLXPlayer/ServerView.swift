@@ -194,7 +194,7 @@ struct ServerView: View {
                     Button("Copy") { model.copy(model.draft.commandPreview(supported: model.supportedFlags, executable: exe)) }
                         .buttonStyle(.pill(height: 24))
                 case .log:
-                    CodeBlock(text: model.logLines.suffix(150).joined(separator: "\n"), height: 330)
+                    LogPane(lines: model.logLines, height: 330)
                 }
             }
         }

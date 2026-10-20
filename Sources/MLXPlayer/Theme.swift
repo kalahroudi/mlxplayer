@@ -267,21 +267,94 @@ func optionalBinding(_ source: Binding<String?>) -> Binding<String> {
 
 // MARK: - Code & bars
 
+/// Short commands and snippets. Wraps long lines instead of scrolling sideways.
 struct CodeBlock: View {
     let text: String
     var height: CGFloat?
     var body: some View {
-        ScrollView([.vertical, .horizontal]) {
+        ScrollView(.vertical) {
             Text(text)
                 .font(.system(size: 11.5, design: .monospaced))
                 .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
         }
-        .scrollIndicators(.automatic)
         .frame(height: height)
         .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 9))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.08)))
+    }
+}
+
+/// Terminal-style panel for live output. Lines wrap, severity is tinted, and the view follows new
+/// lines until the user scrolls up. Fixed dark colors keep it readable in light mode too.
+struct LogPane: View {
+    let lines: [String]
+    var height: CGFloat?
+    var maxLines = 400
+    var emptyText = "Nothing yet"
+
+    private struct Row: Identifiable { let id: Int; let text: String; let tint: Color }
+
+    private var rows: [Row] {
+        let tail = lines.suffix(maxLines)
+        let base = lines.count - tail.count
+        return tail.enumerated().map { i, raw in
+            let text = LogPane.clean(raw)
+            return Row(id: base + i, text: text, tint: LogPane.tint(for: text))
+        }
+    }
+
+    var body: some View {
+        let rows = rows
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    if rows.isEmpty {
+                        Text(emptyText).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.35))
+                    }
+                    ForEach(rows) { row in
+                        Text(row.text)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(row.tint)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id(row.id)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 12)
+            }
+            .defaultScrollAnchor(.bottom)
+            .onChange(of: lines.count) { _, _ in
+                if let last = rows.last?.id { proxy.scrollTo(last, anchor: .bottom) }
+            }
+        }
+        .frame(height: height)
+        .frame(maxHeight: height == nil ? .infinity : nil)
+        .background(Color(red: 0.075, green: 0.08, blue: 0.095), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08)))
+        .environment(\.colorScheme, .dark)
+    }
+
+    /// Removes ANSI color codes and carriage returns that tools like uv and hf emit.
+    static func clean(_ line: String) -> String {
+        var out = line
+        if out.contains("\u{1B}") {
+            out = out.replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]", with: "", options: .regularExpression)
+        }
+        return out.replacingOccurrences(of: "\r", with: "")
+    }
+
+    static func tint(for line: String) -> Color {
+        let l = line.lowercased()
+        if l.contains("error") || l.contains("failed") || l.contains("traceback") || l.contains("fatal") { return .bad }
+        if l.contains("warn") { return .warn }
+        if l.hasPrefix("downloading") || l.hasPrefix("resolved") || l.hasPrefix("prepared") || l.hasPrefix("audited") {
+            return Color.white.opacity(0.55)
+        }
+        if l.hasPrefix("installed") || l.contains("ready") || l.contains("running") { return .good }
+        return Color.white.opacity(0.88)
     }
 }
 
