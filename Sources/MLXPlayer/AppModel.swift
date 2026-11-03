@@ -10,7 +10,7 @@ final class AppModel {
     let paths = AppPaths()
     let store: SettingsStore
     let usage: UsageStore
-    let logs = LogBuffer(capacity: 2000)
+    let logs = LogBuffer(capacity: 2000, file: AppPaths().root.appendingPathComponent("logs/server.log"))
     /// Quick-chat conversation. Owned here so it survives leaving the Chat screen and is saved to chat.json.
     @ObservationIgnored let chat = ChatModel(file: AppPaths().chatFile)
     let hf = HuggingFaceClient()

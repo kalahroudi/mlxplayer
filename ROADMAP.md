@@ -22,7 +22,7 @@ Status as of v0.1.3. Items are ordered by value to users.
 - [ ] Playground screen (side-by-side prompts across models)
 - [ ] Quality ranking from a refreshable benchmark table (today a size/quantization heuristic)
 - [ ] Advisor free text understood by a model instead of keyword matching
-- [ ] Remove the unused `logs/` folder, rotate `swap.log`
+- [ ] Rotate `swap.log`
 
 ## Not planned
 

@@ -83,7 +83,7 @@ struct ServerView: View {
         switch tab {
         case .context:
             SettingRow(title: "Context length", detail: contextHint) {
-                Dropdown(options: contextOptions.map { ($0, formatContext($0)) }, selection: $model.draft.contextLength, width: 110)
+                SliderField(value: contextK, range: 4...max(32, Double(model.draft.contextLength / 1024)), step: 1, format: "%.0fK")
             }
             ToggleRow(title: "Prompt cache", detail: "Reuses work between requests", isOn: $model.draft.promptCacheEnabled)
             SettingRow(title: "Cache size") {
@@ -149,10 +149,10 @@ struct ServerView: View {
         return model.tailscaleNote ?? "Setting up HTTPS…"
     }
 
-    private var contextOptions: [Int] {
-        var all = Advisor.contextSteps
-        if !all.contains(model.draft.contextLength) { all.append(model.draft.contextLength); all.sort() }
-        return all
+    /// Context length in K tokens, so the slider moves in 1K steps (24K, 28K…) instead of fixed powers of two.
+    private var contextK: Binding<Double> {
+        Binding(get: { Double(model.draft.contextLength) / 1024 },
+                set: { model.draft.contextLength = Int($0.rounded()) * 1024 })
     }
 
     private var contextHint: String? {
