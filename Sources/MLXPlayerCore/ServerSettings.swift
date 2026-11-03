@@ -227,6 +227,10 @@ public final class SettingsStore: @unchecked Sendable {
         lock.withLock { payload.perModel[modelID] } ?? ServerSettings(modelID: modelID)
     }
 
+    public func hasSettings(for modelID: String) -> Bool {
+        lock.withLock { payload.perModel[modelID] != nil }
+    }
+
     public func save(_ settings: ServerSettings) {
         lock.withLock { payload.perModel[settings.modelID] = settings }
         save()
