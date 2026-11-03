@@ -7,14 +7,49 @@ public final class LogBuffer: @unchecked Sendable {
     private let lock = NSLock()
     public var onAppend: (@Sendable (String) -> Void)?
 
-    public init(capacity: Int = 2000) { self.capacity = capacity }
+    private let file: URL?
+    private let maxFileBytes: Int
+    private var fileHandle: FileHandle?
+    private var fileBytes = 0
+
+    /// With a `file`, every line is also appended to it, so what the server printed survives a crash or an app restart.
+    /// At `maxFileBytes` the file moves to `<name>.1` (one previous generation is kept).
+    public init(capacity: Int = 2000, file: URL? = nil, maxFileBytes: Int = 2_000_000) {
+        self.capacity = capacity
+        self.file = file
+        self.maxFileBytes = maxFileBytes
+    }
 
     public func append(_ line: String) {
         lock.withLock {
             lines.append(line)
             if lines.count > capacity { lines.removeFirst(lines.count - capacity) }
+            writeToFile(line)
         }
         onAppend?(line)
+    }
+
+    private func writeToFile(_ line: String) {
+        guard let file else { return }
+        let fm = FileManager.default
+        if fileHandle == nil {
+            try? fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if !fm.fileExists(atPath: file.path) { fm.createFile(atPath: file.path, contents: nil) }
+            fileHandle = try? FileHandle(forWritingTo: file)
+            fileBytes = Int((try? fileHandle?.seekToEnd()) ?? 0)
+        }
+        guard let handle = fileHandle else { return }
+        let data = Data((line + "\n").utf8)
+        try? handle.write(contentsOf: data)
+        fileBytes += data.count
+        if fileBytes >= maxFileBytes {
+            try? handle.close()
+            fileHandle = nil
+            let old = file.appendingPathExtension("1")
+            try? fm.removeItem(at: old)
+            try? fm.moveItem(at: file, to: old)
+            fileBytes = 0
+        }
     }
 
     public var snapshot: [String] { lock.withLock { lines } }
