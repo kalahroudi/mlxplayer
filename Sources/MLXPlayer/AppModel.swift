@@ -326,8 +326,18 @@ final class AppModel {
 
     // MARK: Model selection & settings
 
+    /// Saved settings, or for a model never configured, defaults with the context set to its native window.
+    func savedSettings(for id: String) -> ServerSettings {
+        var s = store.settings(for: id)
+        if !store.hasSettings(for: id) {
+            let meta = installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id)
+            if let native = meta.nativeContext { s.contextLength = native }
+        }
+        return s
+    }
+
     func select(model id: String) {
-        draft = store.settings(for: id)
+        draft = savedSettings(for: id)
         app.lastModelID = id
     }
 
@@ -342,7 +352,7 @@ final class AppModel {
     }
 
     func revertDraft() {
-        if let a = applied { draft = a } else { draft = store.settings(for: draft.modelID) }
+        if let a = applied { draft = a } else { draft = savedSettings(for: draft.modelID) }
     }
 
     // MARK: Install
@@ -450,7 +460,7 @@ final class AppModel {
         guard isInstalled else { showSetup = true; return }
         lastError = nil
 
-        var settings = store.settings(for: id)
+        var settings = savedSettings(for: id)
         if draft.modelID == id { settings = draft }
         let meta = installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id)
         let assessment = advisor.assess(meta, task: .coding)
@@ -999,7 +1009,7 @@ final class AppModel {
         case "/start":
             guard !model.isEmpty else { return (400, ["error": "model_id is required"]) }
             guard approve("Load \(model) and start the server?") else { return (403, ["error": "The user denied starting the server."]) }
-            var s = store.settings(for: model)
+            var s = savedSettings(for: model)
             if let c = body["context_length"] as? Int { s.contextLength = c }
             if let thinking = body["thinking"] as? Bool { s.chatTemplateArgs = thinking ? nil : #"{"enable_thinking":false}"# }
             store.save(s)
@@ -1008,7 +1018,7 @@ final class AppModel {
             return isRunning ? (200, statusJSON()) : (500, ["error": lastError ?? "The server did not start."])
         case "/settings":
             guard approve("Change saved settings for \(model)?") else { return (403, ["error": "The user denied the change."]) }
-            var s = store.settings(for: model)
+            var s = savedSettings(for: model)
             let patch = body["settings"] as? [String: Any] ?? [:]
             if let v = patch["context_length"] as? Int { s.contextLength = v }
             if let v = patch["temperature"] as? Double { s.temperature = v }

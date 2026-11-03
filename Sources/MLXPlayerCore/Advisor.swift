@@ -16,17 +16,6 @@ public enum AdvisorTask: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// Context length worth planning for, before memory limits are applied.
-    public var preferredContext: Int {
-        switch self {
-        case .coding, .toolCalling: return 65_536
-        case .chat, .reasoning: return 32_768
-        case .longDocuments: return 131_072
-        case .vision: return 16_384
-        case .embeddings, .fastest: return 8_192
-        }
-    }
-
     /// Picks the most likely task from a free-text description. Plain keyword matching, no AI involved.
     public static func infer(from text: String) -> AdvisorTask {
         let t = text.lowercased()
@@ -149,8 +138,8 @@ public struct Advisor: Sendable {
 
         func used(_ ctx: Int) -> Double { Double(weights) + perToken * Double(ctx) }
 
-        // Largest context step that stays within 70% of budget, up to the task's preference.
-        let cap = min(task.preferredContext, native)
+        // Largest context step that stays within 70% of budget, up to the model's native window.
+        let cap = native
         var recommended = Self.contextSteps.first ?? 4_096
         for step in Self.contextSteps where step <= cap && used(step) <= budget * 0.7 { recommended = step }
         if used(recommended) > budget * 0.7 {
