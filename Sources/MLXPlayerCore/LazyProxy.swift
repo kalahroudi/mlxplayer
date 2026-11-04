@@ -48,6 +48,9 @@ public final class LazyProxy: @unchecked Sendable {
     public var activeConnections: Int { lock.withLock { _active } }
     public var lastActivity: Date { lock.withLock { _lastActivity } }
 
+    /// Counts a model load as activity, so a model started by hand is not unloaded by an idle timer that began long ago.
+    public func touch() { lock.withLock { _lastActivity = Date() } }
+
     public func start() throws {
         try listener.start { [weak self] fd in self?.handle(fd) }
     }

@@ -508,6 +508,7 @@ final class AppModel {
                 applied = attempt
                 if draft.modelID == id, attempt != draft, !retried { draft = attempt }
                 proxy?.contextLimit = effectiveContextLimit
+                proxy?.touch()
                 failures.removeAll()
                 return
             } catch ServerError.cancelled {
