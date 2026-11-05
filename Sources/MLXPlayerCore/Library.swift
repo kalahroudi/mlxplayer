@@ -24,7 +24,7 @@ public enum ModelLibrary {
                   let rev = revs.first(where: { fm.fileExists(atPath: $0.appendingPathComponent("config.json").path) })
             else { continue }
             // Skip partial downloads.
-            if directorySize(dir.appendingPathComponent("blobs"), suffix: ".incomplete") > 0 { continue }
+            if unfinishedBytes(dir.appendingPathComponent("blobs")) > 0 { continue }
 
             var meta = ModelMetadata.fromName(id)
             if let data = try? Data(contentsOf: rev.appendingPathComponent("config.json")),
@@ -50,7 +50,7 @@ public enum ModelLibrary {
             let snapshots = dir.appendingPathComponent("snapshots", isDirectory: true)
             let hasConfig = (try? fm.contentsOfDirectory(at: snapshots, includingPropertiesForKeys: nil))?
                 .contains { fm.fileExists(atPath: $0.appendingPathComponent("config.json").path) } ?? false
-            if hasConfig && directorySize(blobs, suffix: ".incomplete") == 0 { continue }
+            if hasConfig && unfinishedBytes(blobs) == 0 { continue }
             let id = String(dir.lastPathComponent.dropFirst("models--".count)).replacingOccurrences(of: "--", with: "/")
             out.append(PartialModel(id: id, bytes: bytes))
         }
@@ -64,10 +64,35 @@ public enum ModelLibrary {
         var total: UInt64 = 0
         for f in files {
             if let suffix, !f.lastPathComponent.hasSuffix(suffix) { continue }
-            let size = (try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            let size = (try? f.resolvingSymlinksInPath().resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             total += UInt64(size)
         }
         return total
+    }
+
+    /// Blobs that are really still being fetched: `.incomplete` files whose finished blob does not exist.
+    /// Since the Xet backend, a finished blob is a symlink into the shared cache, and earlier attempts leave
+    /// `.incomplete` files behind that must not make a finished model look like a partial one.
+    public static func unfinishedBytes(_ blobs: URL) -> UInt64 {
+        var total: UInt64 = 0
+        for f in incompleteFiles(blobs) where !f.finished {
+            total += UInt64((try? f.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+        return total
+    }
+
+    /// Deletes `.incomplete` files left over from attempts whose blob has since finished.
+    public static func removeStaleIncompletes(_ blobs: URL) {
+        for f in incompleteFiles(blobs) where f.finished { try? FileManager.default.removeItem(at: f.url) }
+    }
+
+    private static func incompleteFiles(_ blobs: URL) -> [(url: URL, finished: Bool)] {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: blobs, includingPropertiesForKeys: nil) else { return [] }
+        return files.filter { $0.lastPathComponent.hasSuffix(".incomplete") }.map { f in
+            let blob = String(f.lastPathComponent.prefix { $0 != "." })
+            return (f, fm.fileExists(atPath: blobs.appendingPathComponent(blob).path))
+        }
     }
 
     /// Bytes fetched so far in a model's `blobs` folder. Every paused, stalled or retried attempt can leave its own
@@ -80,7 +105,7 @@ public enum ModelLibrary {
         for f in files {
             let name = f.lastPathComponent
             let blob = String(name.prefix { $0 != "." })
-            let size = UInt64((try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+            let size = UInt64((try? f.resolvingSymlinksInPath().resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
             largest[blob] = max(largest[blob] ?? 0, size)
         }
         return largest.values.reduce(0, +)
@@ -242,6 +267,7 @@ public final class ModelDownload: @unchecked Sendable {
         if wasCancelled { return }
         let bytes = ModelLibrary.downloadedBytes(cacheDir)
         if exitCode == 0 {
+            ModelLibrary.removeStaleIncompletes(cacheDir)
             onProgress(DownloadProgress(modelID: modelID, downloadedBytes: bytes, totalBytes: totalBytes ?? bytes,
                                         bytesPerSecond: 0, finished: true))
         } else {
