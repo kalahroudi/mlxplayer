@@ -45,7 +45,7 @@ public enum ModelLibrary {
         var out: [PartialModel] = []
         for dir in dirs where dir.lastPathComponent.hasPrefix("models--") {
             let blobs = dir.appendingPathComponent("blobs", isDirectory: true)
-            let bytes = directorySize(blobs)
+            let bytes = downloadedBytes(blobs)
             guard bytes > 0 else { continue }
             let snapshots = dir.appendingPathComponent("snapshots", isDirectory: true)
             let hasConfig = (try? fm.contentsOfDirectory(at: snapshots, includingPropertiesForKeys: nil))?
@@ -68,6 +68,22 @@ public enum ModelLibrary {
             total += UInt64(size)
         }
         return total
+    }
+
+    /// Bytes fetched so far in a model's `blobs` folder. Every paused, stalled or retried attempt can leave its own
+    /// `<hash>.<suffix>.incomplete` file for the same blob, so only the largest file per blob counts; summing them
+    /// all would push the progress to 100% right after a resume.
+    public static func downloadedBytes(_ blobs: URL) -> UInt64 {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: blobs, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        var largest: [String: UInt64] = [:]
+        for f in files {
+            let name = f.lastPathComponent
+            let blob = String(name.prefix { $0 != "." })
+            let size = UInt64((try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+            largest[blob] = max(largest[blob] ?? 0, size)
+        }
+        return largest.values.reduce(0, +)
     }
 
     public static func delete(hub: URL, id: String) throws {
@@ -161,7 +177,7 @@ public final class ModelDownload: @unchecked Sendable {
         let p = ManagedProcess(executable: cli, arguments: ["download", modelID], environment: env) { onLog($0) }
         try p.start()
         process = p
-        lastBytes = ModelLibrary.directorySize(cacheDir)
+        lastBytes = ModelLibrary.downloadedBytes(cacheDir)
         lastTime = Date()
         startTimer()
         Task { [weak self] in
@@ -199,7 +215,7 @@ public final class ModelDownload: @unchecked Sendable {
 
     private func tick() {
         let now = Date()
-        let bytes = ModelLibrary.directorySize(cacheDir)
+        let bytes = ModelLibrary.downloadedBytes(cacheDir)
         let dt = now.timeIntervalSince(lastTime)
         if dt > 0 {
             let instant = Double(bytes >= lastBytes ? bytes - lastBytes : 0) / dt
@@ -224,7 +240,7 @@ public final class ModelDownload: @unchecked Sendable {
         timer = nil
         let wasCancelled = lock.withLock { cancelled }
         if wasCancelled { return }
-        let bytes = ModelLibrary.directorySize(cacheDir)
+        let bytes = ModelLibrary.downloadedBytes(cacheDir)
         if exitCode == 0 {
             onProgress(DownloadProgress(modelID: modelID, downloadedBytes: bytes, totalBytes: totalBytes ?? bytes,
                                         bytesPerSecond: 0, finished: true))
