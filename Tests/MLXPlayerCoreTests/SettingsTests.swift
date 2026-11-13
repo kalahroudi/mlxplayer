@@ -109,6 +109,21 @@ final class SettingsTests: XCTestCase {
         a.apply(profile: .performance)
         XCTAssertEqual(a.idleUnloadMinutes, 0)
     }
+
+    func testEffectiveContextLengthHonorsExtraArguments() {
+        var s = ServerSettings(modelID: "m/x")
+        s.contextLength = 4096
+        XCTAssertEqual(s.effectiveContextLength, 4096)
+
+        s.extraArguments = "--max-kv-size 20480"
+        XCTAssertEqual(s.effectiveContextLength, 20480)
+        let args = s.arguments(supported: ["--model", "--host", "--port", "--max-kv-size"])
+        XCTAssertEqual(args.filter { $0 == "--max-kv-size" }.count, 1)
+        XCTAssertEqual(args[args.firstIndex(of: "--max-kv-size")! + 1], "20480")
+
+        s.extraArguments = "--foo 1 --max-kv-size=20000"
+        XCTAssertEqual(s.effectiveContextLength, 20000)
+    }
 }
 
 final class MemoryPolicyTests: XCTestCase {

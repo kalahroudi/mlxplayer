@@ -166,7 +166,7 @@ struct ServerView: View {
         let meta = model.installed.first { $0.id == model.draft.modelID }?.meta ?? ModelMetadata.fromName(model.draft.modelID)
         let adv = model.advisor
         let weights = Double(adv.weightsBytes(meta))
-        let kv = meta.kvBytesPerToken(elementBytes: Double(model.draft.kvBits ?? 16) / 8) * Double(model.draft.contextLength)
+        let kv = meta.kvBytesPerToken(elementBytes: Double(model.draft.kvBits ?? 16) / 8) * Double(model.draft.effectiveContextLength)
         let cache = model.draft.promptCacheEnabled ? model.draft.promptCacheGB * 1_073_741_824 : 0
         let budget = Double(adv.budgetBytes)
         let used = weights + kv + cache
