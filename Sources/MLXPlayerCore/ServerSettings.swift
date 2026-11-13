@@ -40,6 +40,31 @@ public struct ServerSettings: Codable, Equatable, Sendable {
 
     public init(modelID: String) { self.modelID = modelID }
 
+    /// Context limit actually requested for the server: an explicit `--max-kv-size` in `extraArguments`
+    /// overrides `contextLength`, matching what `mlx_lm.server` receives.
+    public var effectiveContextLength: Int {
+        extraMaxKVSize ?? contextLength
+    }
+
+    private var extraMaxKVSize: Int? {
+        let tokens = extraArguments.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init)
+        var override: Int?
+        var i = 0
+        while i < tokens.count {
+            let tok = tokens[i]
+            if tok == "--max-kv-size", i + 1 < tokens.count, let v = Int(tokens[i + 1]), v > 0 {
+                override = v
+                i += 2
+                continue
+            }
+            if tok.hasPrefix("--max-kv-size="), let v = Int(tok.dropFirst("--max-kv-size=".count)), v > 0 {
+                override = v
+            }
+            i += 1
+        }
+        return override
+    }
+
     /// Arguments for `mlx_lm.server`. Pass the flags the installed version supports so unknown ones are skipped.
     /// `portOverride` is used when the on-demand proxy owns the public port.
     public func arguments(supported: Set<String>? = nil, portOverride: Int? = nil) -> [String] {
@@ -78,8 +103,8 @@ public struct ServerSettings: Codable, Equatable, Sendable {
         if trustRemoteCode { add("--trust-remote-code", nil) }
         if allowedOrigins != "*" || supported != nil { add("--allowed-origins", allowedOrigins) }
         add("--log-level", logLevel)
-        // Some versions expose a hard KV cap; use it when present.
-        if ok("--max-kv-size"), supported != nil { args += ["--max-kv-size", String(contextLength)] }
+        // Some versions expose a hard KV cap; use it when present unless extraArguments already sets it.
+        if ok("--max-kv-size"), supported != nil, extraMaxKVSize == nil { args += ["--max-kv-size", String(contextLength)] }
 
         let extra = extraArguments.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init)
         args += extra

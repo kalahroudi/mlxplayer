@@ -36,8 +36,12 @@ final class AppModel {
     var app: AppSettings {
         didSet { store.app = app; proxy?.contextLimit = effectiveContextLimit }
     }
-    var draft: ServerSettings
-    private(set) var applied: ServerSettings?
+    var draft: ServerSettings {
+        didSet { proxy?.contextLimit = effectiveContextLimit }
+    }
+    private(set) var applied: ServerSettings? {
+        didSet { proxy?.contextLimit = effectiveContextLimit }
+    }
 
     // MARK: Install
     var isInstalled = false
@@ -278,7 +282,7 @@ final class AppModel {
     }
 
     var effectiveContextLimit: Int {
-        var limit = applied?.contextLength ?? draft.contextLength
+        var limit = applied?.effectiveContextLength ?? draft.effectiveContextLength
         if pressureCapActive { limit = min(limit, app.cappedContext) }
         return limit
     }
@@ -462,6 +466,7 @@ final class AppModel {
 
         var settings = savedSettings(for: id)
         if draft.modelID == id { settings = draft }
+        store.save(settings)
         let meta = installed.first { $0.id == id }?.meta ?? ModelMetadata.fromName(id)
         let assessment = advisor.assess(meta, task: .coding)
         if app.preflightFitCheck, assessment.verdict == .wontFit {
@@ -496,7 +501,6 @@ final class AppModel {
 
         activeModelID = id
         app.lastModelID = id
-        store.save(settings)
 
         var attempt = settings
         var retried = false
